@@ -1,0 +1,124 @@
+### =======================================================
+### USUARIOS (Users)
+### =======================================================
+
+### Criar Usuario
+POST http://localhost:8080/users
+Content-Type: application/json
+
+{
+  "name": "Administrador",
+  "email": "admin@helpdesk.com",
+  "password": "123",
+  "role": "ADMIN"
+}
+
+### Listar Usuarios
+GET http://localhost:8080/users
+
+
+### =======================================================
+### ATIVOS DE TI (Assets) - CENARIOS DE SUCESSO
+### =======================================================
+
+### 1. Criar Ativo (POST /assets) -> 201 Created
+POST http://localhost:8080/assets
+Content-Type: application/json
+
+{
+  "code": "NOTE-001",
+  "type": "Notebook",
+  "description": "Dell Latitude 3420 - Core i5 16GB",
+  "status": "INACTIVE"
+}
+
+### 2. Criar Segundo Ativo para testes (POST /assets) -> 201 Created
+POST http://localhost:8080/assets
+Content-Type: application/json
+
+{
+  "code": "MON-001",
+  "type": "Monitor",
+  "description": "Dell 24 polegadas Full HD",
+  "status": "INACTIVE"
+}
+
+### 3. Listar Todos os Ativos (GET /assets) -> 200 OK
+GET http://localhost:8080/assets
+
+### 4. Buscar Ativo por ID (GET /assets/{id}) -> 200 OK
+GET http://localhost:8080/assets/1
+
+### 5. Atualizar Ativo Completo (PUT /assets/{id}) -> 200 OK
+PUT http://localhost:8080/assets/1
+Content-Type: application/json
+
+{
+  "code": "NOTE-001",
+  "type": "Notebook Corporativo",
+  "description": "Dell Latitude 3420 - Atualizado para 32GB RAM",
+  "status": "UNDER_MAINTENANCE"
+}
+
+### 6. Atualizar Somente Status do Ativo (PATCH /assets/{id}/status) -> 200 OK
+PATCH http://localhost:8080/assets/1/status
+Content-Type: application/json
+
+{
+  "status": "IN_USE"
+}
+
+### 7. Excluir Ativo (DELETE /assets/{id}) -> 204 No Content
+DELETE http://localhost:8080/assets/2
+
+
+### =======================================================
+### ATIVOS DE TI (Assets) - CENARIOS DE ERRO
+### =======================================================
+
+### Erro 1: Buscar por ID Inexistente (GET /assets/{id}) -> 404 Not Found
+GET http://localhost:8080/assets/999
+
+### Erro 2: Criar com Código Duplicado (POST /assets) -> 409 Conflict
+POST http://localhost:8080/assets
+Content-Type: application/json
+
+{
+  "code": "NOTE-001",
+  "type": "Notebook",
+  "description": "Tentando recriar com codigo que ja existe",
+  "status": "INACTIVE"
+}
+
+### Erro 3: Atualizar usando Código de Outro Ativo (PUT /assets/{id}) -> 409 Conflict
+PUT http://localhost:8080/assets/2
+Content-Type: application/json
+
+{
+  "code": "NOTE-001",
+  "type": "Monitor",
+  "description": "Tentativa de colocar o codigo do ativo 1 no ativo 2",
+  "status": "INACTIVE"
+}
+
+### Erro 4: Campos Obrigatórios Ausentes (POST /assets) -> 400 Bad Request
+POST http://localhost:8080/assets
+Content-Type: application/json
+
+{
+  "code": "",
+  "type": "",
+  "description": "Descricao sem codigo nem tipo nem status",
+  "status": null
+}
+
+### Erro 5: Status Inválido no Enum (PATCH /assets/{id}/status) -> 400 Bad Request
+PATCH http://localhost:8080/assets/1/status
+Content-Type: application/json
+
+{
+  "status": "STATUS_QUE_NAO_EXISTE"
+}
+
+### Erro 6: Excluir ID Inexistente (DELETE /assets/{id}) -> 404 Not Found
+DELETE http://localhost:8080/assets/999

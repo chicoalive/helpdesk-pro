@@ -1,0 +1,18 @@
+# Gradle
+.gradle/
+**/build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Configuracoes locais e segredos
+.env
+.env.*
+*.local.properties
+http-client.private.env.json
