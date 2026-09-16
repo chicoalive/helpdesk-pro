@@ -15,6 +15,7 @@ import com.helpdeskpro.backend.dto.TicketStatusUpdateDTO;
 import com.helpdeskpro.backend.exceptions.AssetNotFoundException;
 import com.helpdeskpro.backend.exceptions.BusinessRuleException;
 import com.helpdeskpro.backend.exceptions.TicketNotFoundException;
+import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.AssetRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -33,6 +33,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -83,7 +84,7 @@ class TicketServiceTest {
 
         assertNotNull(response);
         assertEquals(TicketStatus.CRIADO, response.getStatus());
-        org.junit.jupiter.api.Assertions.assertNull(response.getTechnicianId());
+        assertNull(response.getTechnicianId());
         assertEquals(TicketPriority.ALTA, response.getPriority());
         assertEquals("Erro no ERP", response.getTitle());
     }
@@ -147,7 +148,7 @@ class TicketServiceTest {
         when(assetRepository.findById(2L)).thenReturn(Optional.of(inactiveAsset));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
-        assertEquals("Não é permitido vincular um ativo que possua status INACTIVE.", ex.getMessage());
+        assertEquals("Somente ativos com status IN_USE podem ser vinculados a chamados.", ex.getMessage());
     }
 
     @Test
@@ -160,7 +161,7 @@ class TicketServiceTest {
         when(assetRepository.findById(3L)).thenReturn(Optional.of(discardedAsset));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
-        assertEquals("Não é permitido vincular um ativo que possua status DISCARDED.", ex.getMessage());
+        assertEquals("Somente ativos com status IN_USE podem ser vinculados a chamados.", ex.getMessage());
     }
 
     @Test
@@ -180,13 +181,26 @@ class TicketServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessRuleException ao criar chamado com solicitante inexistente")
+    @DisplayName("Deve lançar UserNotFoundException ao criar chamado com solicitante inexistente")
     void createTicket_RequesterNotFound_ThrowsException() {
         TicketRequestDTO dto = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, 99L, null);
 
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
+        assertThrows(UserNotFoundException.class, () -> ticketService.createTicket(dto));
+    }
+
+    @Test
+    @DisplayName("Deve lançar BusinessRuleException se o solicitante não possuir o papel REQUESTER")
+    void createTicket_RequesterInvalidRole_ThrowsException() {
+        User adminUser = new User("Admin", "admin@helpdesk.com", "123", UserRole.ADMIN);
+        ReflectionTestUtils.setField(adminUser, "id", 10L);
+        TicketRequestDTO dto = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, 10L, null);
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(adminUser));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
+        assertEquals("O solicitante deve ter o papel REQUESTER.", ex.getMessage());
     }
 
     @Test
@@ -209,6 +223,21 @@ class TicketServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar BusinessRuleException ao tentar atribuir usuário sem papel TECHNICIAN")
+    void assignTechnician_InvalidRole_ThrowsException() {
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
+        User nonTechUser = new User("Outro", "outro@helpdesk.com", "123", UserRole.REQUESTER);
+        ReflectionTestUtils.setField(nonTechUser, "id", 5L);
+        TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(5L);
+
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+        when(userRepository.findById(5L)).thenReturn(Optional.of(nonTechUser));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
+        assertEquals("Apenas usuários com papel TECHNICIAN podem ser atribuídos como técnico.", ex.getMessage());
+    }
+
+    @Test
     @DisplayName("Deve lançar BusinessRuleException ao tentar atribuir técnico a chamado que já tem técnico")
     void assignTechnician_AlreadyAssigned_ThrowsException() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
@@ -219,6 +248,21 @@ class TicketServiceTest {
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
         assertEquals("O chamado já possui um técnico atribuído e não pode ser reatribuído.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Deve transitar status de ABERTO para EM_ATENDIMENTO")
+    void updateTicketStatus_ToEmAtendimento_Success() {
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
+        ticket.setStatus(TicketStatus.ABERTO);
+        TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.EM_ATENDIMENTO, null);
+
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TicketResponseDTO response = ticketService.updateTicketStatus(1L, dto);
+
+        assertEquals(TicketStatus.EM_ATENDIMENTO, response.getStatus());
     }
 
     @Test
@@ -295,7 +339,7 @@ class TicketServiceTest {
     }
 
     @Test
-    @DisplayName("Deve permitir cancelar chamado se estiver ABERTO, EM_ATENDIMENTO ou AGUARDANDO_USUARIO")
+    @DisplayName("Deve permitir cancelar chamado se estiver ABERTO")
     void updateTicketStatus_ToCancelado_WhenAberto_Success() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setStatus(TicketStatus.ABERTO);
@@ -320,6 +364,18 @@ class TicketServiceTest {
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.updateTicketStatus(1L, dto));
         assertEquals("Não é permitido cancelar um chamado que já está com status RESOLVIDO.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Deve lançar BusinessRuleException para transição fora do fluxo permitido")
+    void updateTicketStatus_InvalidTransition_ThrowsException() {
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
+        ticket.setStatus(TicketStatus.CRIADO);
+        TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, "Tentando pular etapas");
+
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+
+        assertThrows(BusinessRuleException.class, () -> ticketService.updateTicketStatus(1L, dto));
     }
 
     @Test
