@@ -7,6 +7,7 @@ Este projeto está sendo desenvolvido como portfólio para demonstrar conhecimen
 ## Tecnologias
 
 ### Backend
+
 - Java 21
 - Spring Boot
 - Spring Data JPA
@@ -15,36 +16,58 @@ Este projeto está sendo desenvolvido como portfólio para demonstrar conhecimen
 - PostgreSQL
 
 ### Frontend
-- Angular e RxJS (planejado para etapas futuras)
+
+- Angular e RxJS — planejado para etapas futuras
 
 ## Funcionalidades implementadas
 
 ### Etapa 1 — Estrutura inicial do backend
+
 - Projeto Spring Boot criado com Gradle e Java 21
 - Integração configurada com PostgreSQL
 - Aplicação executando localmente na porta 8080
 
 ### Etapa 2 — Gestão de usuários
+
 - Cadastro e listagem de usuários
 - Perfis de usuário com enumeração de papéis
 - E-mail único validado pelo banco de dados
 - Senha não exposta nas respostas JSON
 
 ### Etapa 3 — Gestão de ativos de TI
+
 - CRUD básico de ativos
 - Cadastro, listagem e edição de ativos
 - Alteração de status do ativo
 - Código de ativo único
 - Persistência validada no PostgreSQL
 
+### Etapa 4 — Gestão de chamados
+
+- Criação, consulta e listagem de chamados
+- Categorias: `INCIDENTE_SISTEMA`, `INCIDENTE_EQUIPAMENTO` e `DUVIDA`
+- Prioridade automática por categoria
+- Vínculo de ativo obrigatório para incidentes de equipamento
+- Atribuição de técnico e validação de papéis
+- Fluxo de status: `CRIADO -> ABERTO -> EM_ATENDIMENTO -> RESOLVIDO -> FECHADO`
+- Cancelamento permitido em `CRIADO` ou `ABERTO`
+- Testes unitários e de integração: 67 aprovados
+
 ## Próximas etapas
 
-- Modelagem de chamados técnicos
 - Histórico e comentários dos chamados
 - Autenticação e autorização com Spring Security e JWT
 - Documentação da API com Swagger/OpenAPI
 - Frontend Angular
 - Dashboard com indicadores
+
+## Status
+
+Projeto em desenvolvimento.
+
+As Etapas 1 a 4 estão implementadas. A Etapa 4 foi validada com testes automatizados isolados, com 67 testes aprovados e nenhuma falha.
+
+**Etapa atual: 5.**
 
 ## Como executar localmente
 
@@ -65,7 +88,3 @@ gradlew.bat bootRun
 ```
 
 A API ficará disponível em `http://localhost:8080`.
-
-## Status
-
-Projeto em desenvolvimento. A primeira publicação reúne as Etapas 1, 2 e 3, que foram implementadas e testadas localmente antes da criação deste repositório Git.
