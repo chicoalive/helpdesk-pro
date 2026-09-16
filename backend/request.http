@@ -2,15 +2,26 @@
 ### USUARIOS (Users)
 ### =======================================================
 
-### Criar Usuario
+### Criar Usuario Solicitante
 POST http://localhost:8080/users
 Content-Type: application/json
 
 {
-  "name": "Administrador",
-  "email": "admin@helpdesk.com",
+  "name": "Carlos Solicitante",
+  "email": "carlos@helpdesk.com",
   "password": "123",
-  "role": "ADMIN"
+  "role": "REQUESTER"
+}
+
+### Criar Usuario Tecnico
+POST http://localhost:8080/users
+Content-Type: application/json
+
+{
+  "name": "Ana Tecnica",
+  "email": "ana@helpdesk.com",
+  "password": "123",
+  "role": "TECHNICIAN"
 }
 
 ### Listar Usuarios
@@ -18,107 +29,184 @@ GET http://localhost:8080/users
 
 
 ### =======================================================
-### ATIVOS DE TI (Assets) - CENARIOS DE SUCESSO
+### ATIVOS DE TI (Assets)
 ### =======================================================
 
-### 1. Criar Ativo (POST /assets) -> 201 Created
+### 1. Criar Ativo Em Uso (Valido para vinculo) -> 201 Created
 POST http://localhost:8080/assets
 Content-Type: application/json
 
 {
-  "code": "NOTE-001",
+  "code": "NOTE-100",
   "type": "Notebook",
-  "description": "Dell Latitude 3420 - Core i5 16GB",
-  "status": "INACTIVE"
-}
-
-### 2. Criar Segundo Ativo para testes (POST /assets) -> 201 Created
-POST http://localhost:8080/assets
-Content-Type: application/json
-
-{
-  "code": "MON-001",
-  "type": "Monitor",
-  "description": "Dell 24 polegadas Full HD",
-  "status": "INACTIVE"
-}
-
-### 3. Listar Todos os Ativos (GET /assets) -> 200 OK
-GET http://localhost:8080/assets
-
-### 4. Buscar Ativo por ID (GET /assets/{id}) -> 200 OK
-GET http://localhost:8080/assets/1
-
-### 5. Atualizar Ativo Completo (PUT /assets/{id}) -> 200 OK
-PUT http://localhost:8080/assets/1
-Content-Type: application/json
-
-{
-  "code": "NOTE-001",
-  "type": "Notebook Corporativo",
-  "description": "Dell Latitude 3420 - Atualizado para 32GB RAM",
-  "status": "UNDER_MAINTENANCE"
-}
-
-### 6. Atualizar Somente Status do Ativo (PATCH /assets/{id}/status) -> 200 OK
-PATCH http://localhost:8080/assets/1/status
-Content-Type: application/json
-
-{
+  "description": "Dell Latitude 3420",
   "status": "IN_USE"
 }
 
-### 7. Excluir Ativo (DELETE /assets/{id}) -> 204 No Content
-DELETE http://localhost:8080/assets/2
-
-
-### =======================================================
-### ATIVOS DE TI (Assets) - CENARIOS DE ERRO
-### =======================================================
-
-### Erro 1: Buscar por ID Inexistente (GET /assets/{id}) -> 404 Not Found
-GET http://localhost:8080/assets/999
-
-### Erro 2: Criar com Código Duplicado (POST /assets) -> 409 Conflict
+### 2. Criar Ativo Inativo (Para teste de bloqueio) -> 201 Created
 POST http://localhost:8080/assets
 Content-Type: application/json
 
 {
-  "code": "NOTE-001",
+  "code": "NOTE-999",
   "type": "Notebook",
-  "description": "Tentando recriar com codigo que ja existe",
+  "description": "Notebook Inativo",
   "status": "INACTIVE"
 }
 
-### Erro 3: Atualizar usando Código de Outro Ativo (PUT /assets/{id}) -> 409 Conflict
-PUT http://localhost:8080/assets/2
+### 3. Listar Ativos
+GET http://localhost:8080/assets
+
+
+### =======================================================
+### CHAMADOS / TICKETS (Etapa 4) - CENARIOS DE SUCESSO
+### =======================================================
+
+### 1. Criar Chamado: INCIDENTE_SISTEMA (Nasce como CRIADO, Prioridade ALTA) -> 201 Created
+POST http://localhost:8080/tickets
 Content-Type: application/json
 
 {
-  "code": "NOTE-001",
-  "type": "Monitor",
-  "description": "Tentativa de colocar o codigo do ativo 1 no ativo 2",
-  "status": "INACTIVE"
+  "title": "Sistema ERP fora do ar",
+  "description": "Nenhum setor consegue emitir notas fiscais.",
+  "category": "INCIDENTE_SISTEMA",
+  "requesterId": 1
 }
 
-### Erro 4: Campos Obrigatórios Ausentes (POST /assets) -> 400 Bad Request
-POST http://localhost:8080/assets
+### 2. Criar Chamado: INCIDENTE_EQUIPAMENTO (Nasce como CRIADO, Prioridade MEDIA + Asset Obrigatorio) -> 201 Created
+POST http://localhost:8080/tickets
 Content-Type: application/json
 
 {
-  "code": "",
-  "type": "",
-  "description": "Descricao sem codigo nem tipo nem status",
-  "status": null
+  "title": "Notebook nao liga",
+  "description": "Aparelho desligou repentinamente e nao da sinal de carga.",
+  "category": "INCIDENTE_EQUIPAMENTO",
+  "requesterId": 1,
+  "assetId": 1
 }
 
-### Erro 5: Status Inválido no Enum (PATCH /assets/{id}/status) -> 400 Bad Request
-PATCH http://localhost:8080/assets/1/status
+### 3. Criar Chamado: DUVIDA (Nasce como CRIADO, Prioridade BAIXA) -> 201 Created
+POST http://localhost:8080/tickets
 Content-Type: application/json
 
 {
-  "status": "STATUS_QUE_NAO_EXISTE"
+  "title": "Duvida sobre acesso a VPN",
+  "description": "Como configuro o autenticador no novo celular?",
+  "category": "DUVIDA",
+  "requesterId": 1
 }
 
-### Erro 6: Excluir ID Inexistente (DELETE /assets/{id}) -> 404 Not Found
-DELETE http://localhost:8080/assets/999
+### 4. Listar Todos os Chamados (GET /tickets) -> 200 OK
+GET http://localhost:8080/tickets
+
+### 5. Buscar Chamado por ID (GET /tickets/{id}) -> 200 OK
+GET http://localhost:8080/tickets/1
+
+### 6. Listar Chamados por Solicitante (GET /tickets/requester/{requesterId}) -> 200 OK
+GET http://localhost:8080/tickets/requester/1
+
+### 7. Atribuir Tecnico (PATCH /tickets/{id}/technician) -> Transita automaticamente de CRIADO para ABERTO -> 200 OK
+PATCH http://localhost:8080/tickets/1/technician
+Content-Type: application/json
+
+{
+  "technicianId": 2
+}
+
+### 8. Atualizar Status para EM_ATENDIMENTO (PATCH /tickets/{id}/status) -> 200 OK
+PATCH http://localhost:8080/tickets/1/status
+Content-Type: application/json
+
+{
+  "status": "EM_ATENDIMENTO"
+}
+
+### 9. Transitar para RESOLVIDO com Solucao Obrigatoria (PATCH /tickets/{id}/status) -> 200 OK
+PATCH http://localhost:8080/tickets/1/status
+Content-Type: application/json
+
+{
+  "status": "RESOLVIDO",
+  "solution": "Reiniciado o servico do banco de dados do ERP e liberada a fila de integracao."
+}
+
+### 10. Transitar de RESOLVIDO para FECHADO (PATCH /tickets/{id}/status) -> 200 OK
+PATCH http://localhost:8080/tickets/1/status
+Content-Type: application/json
+
+{
+  "status": "FECHADO"
+}
+
+### 11. Cancelar Chamado com status CRIADO ou ABERTO (PATCH /tickets/{id}/status) -> 200 OK
+PATCH http://localhost:8080/tickets/3/status
+Content-Type: application/json
+
+{
+  "status": "CANCELADO"
+}
+
+
+### =======================================================
+### CHAMADOS / TICKETS (Etapa 4) - CENARIOS DE ERRO / REGRAS
+### =======================================================
+
+### Erro 1: INCIDENTE_EQUIPAMENTO sem enviar assetId -> 400 Bad Request
+POST http://localhost:8080/tickets
+Content-Type: application/json
+
+{
+  "title": "Teclado quebrado",
+  "description": "Faltou enviar o ID do equipamento",
+  "category": "INCIDENTE_EQUIPAMENTO",
+  "requesterId": 1
+}
+
+### Erro 2: Vincular ativo com status INACTIVE ou DISCARDED -> 400 Bad Request
+POST http://localhost:8080/tickets
+Content-Type: application/json
+
+{
+  "title": "Monitor piscando",
+  "description": "Tentativa de usar ativo inativo",
+  "category": "INCIDENTE_EQUIPAMENTO",
+  "requesterId": 1,
+  "assetId": 2
+}
+
+### Erro 3: Atribuir novo tecnico a chamado que ja possui tecnico -> 400 Bad Request
+PATCH http://localhost:8080/tickets/1/technician
+Content-Type: application/json
+
+{
+  "technicianId": 1
+}
+
+### Erro 4: Transitar para RESOLVIDO sem solucao -> 400 Bad Request
+PATCH http://localhost:8080/tickets/2/status
+Content-Type: application/json
+
+{
+  "status": "RESOLVIDO",
+  "solution": ""
+}
+
+### Erro 5: Transitar para FECHADO sem passar por RESOLVIDO -> 400 Bad Request
+PATCH http://localhost:8080/tickets/2/status
+Content-Type: application/json
+
+{
+  "status": "FECHADO",
+  "solution": "Tentando fechar direto do estado ABERTO"
+}
+
+### Erro 6: Cancelar chamado ja RESOLVIDO ou FECHADO -> 400 Bad Request
+PATCH http://localhost:8080/tickets/1/status
+Content-Type: application/json
+
+{
+  "status": "CANCELADO"
+}
+
+### Erro 7: Buscar Chamado por ID Inexistente -> 404 Not Found
+GET http://localhost:8080/tickets/9999
