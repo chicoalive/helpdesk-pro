@@ -51,11 +51,20 @@ Este projeto está sendo desenvolvido como portfólio para demonstrar conhecimen
 - Atribuição de técnico e validação de papéis
 - Fluxo de status: `CRIADO -> ABERTO -> EM_ATENDIMENTO -> RESOLVIDO -> FECHADO`
 - Cancelamento permitido em `CRIADO` ou `ABERTO`
-- Testes unitários e de integração: 67 aprovados
+- Testes unitários e de integração
+
+### Etapa 5 — Histórico e comentários
+
+- Comentários vinculados a chamados e usuários
+- Data e hora de criação definidas pelo backend
+- Criação de comentário em um chamado
+- Consulta do histórico de comentários por chamado
+- Histórico retornado em ordem cronológica
+- Validações para comentário vazio, chamado inexistente e usuário inexistente
+- Testes unitários e de integração
 
 ## Próximas etapas
 
-- Histórico e comentários dos chamados
 - Autenticação e autorização com Spring Security e JWT
 - Documentação da API com Swagger/OpenAPI
 - Frontend Angular
@@ -65,9 +74,9 @@ Este projeto está sendo desenvolvido como portfólio para demonstrar conhecimen
 
 Projeto em desenvolvimento.
 
-As Etapas 1 a 4 estão implementadas. A Etapa 4 foi validada com testes automatizados isolados, com 67 testes aprovados e nenhuma falha.
+As Etapas 1 a 5 estão implementadas e validadas com testes automatizados isolados.
 
-**Etapa atual: 5.**
+**Etapa atual: 6.**
 
 ## Como executar localmente
 
