@@ -1,9 +1,60 @@
 ### =======================================================
-### USUARIOS (Users)
+### AUTENTICAÇÃO E LOGIN (Etapa 6 - JWT)
 ### =======================================================
 
-### Criar Usuario Solicitante
+### 1. Login como Administrador -> 200 OK
+# @name loginAdmin
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@helpdesk.com",
+  "password": "123"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+    client.global.set("adminToken", response.body.token);
+%}
+
+
+### 2. Login como Solicitante (REQUESTER) -> 200 OK
+# @name loginRequester
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "carlos@helpdesk.com",
+  "password": "123"
+}
+
+> {%
+    client.global.set("requesterToken", response.body.token);
+%}
+
+
+### 3. Login como Técnico (TECHNICIAN) -> 200 OK
+# @name loginTech
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "ana@helpdesk.com",
+  "password": "123"
+}
+
+> {%
+    client.global.set("techToken", response.body.token);
+%}
+
+
+### =======================================================
+### USUARIOS (Users - Apenas ADMIN)
+### =======================================================
+
+### Criar Usuario Solicitante (Admin Only)
 POST http://localhost:8080/users
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -13,8 +64,9 @@ Content-Type: application/json
   "role": "REQUESTER"
 }
 
-### Criar Usuario Tecnico
+### Criar Usuario Tecnico (Admin Only)
 POST http://localhost:8080/users
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -24,16 +76,18 @@ Content-Type: application/json
   "role": "TECHNICIAN"
 }
 
-### Listar Usuarios
+### Listar Usuarios (Admin Only)
 GET http://localhost:8080/users
+Authorization: Bearer {{token}}
 
 
 ### =======================================================
-### ATIVOS DE TI (Assets)
+### ATIVOS DE TI (Assets - Criação/Edição: ADMIN, Leitura: Logados)
 ### =======================================================
 
-### 1. Criar Ativo Em Uso (Valido para vinculo) -> 201 Created
+### 1. Criar Ativo Em Uso (Admin Only) -> 201 Created
 POST http://localhost:8080/assets
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -43,8 +97,9 @@ Content-Type: application/json
   "status": "IN_USE"
 }
 
-### 2. Criar Ativo Inativo (Para teste de bloqueio) -> 201 Created
+### 2. Criar Ativo Inativo (Admin Only) -> 201 Created
 POST http://localhost:8080/assets
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -54,75 +109,82 @@ Content-Type: application/json
   "status": "INACTIVE"
 }
 
-### 3. Listar Ativos
+### 3. Listar Ativos (Qualquer usuário logado) -> 200 OK
 GET http://localhost:8080/assets
+Authorization: Bearer {{requesterToken}}
 
 
 ### =======================================================
-### CHAMADOS / TICKETS (Etapa 4) - CENARIOS DE SUCESSO
+### CHAMADOS / TICKETS (Etapas 4 e 6) - CENARIOS DE SUCESSO
 ### =======================================================
 
-### 1. Criar Chamado: INCIDENTE_SISTEMA (Nasce como CRIADO, Prioridade ALTA) -> 201 Created
+### 1. Criar Chamado: INCIDENTE_SISTEMA (Requester extraído do JWT) -> 201 Created
 POST http://localhost:8080/tickets
+Authorization: Bearer {{requesterToken}}
 Content-Type: application/json
 
 {
   "title": "Sistema ERP fora do ar",
   "description": "Nenhum setor consegue emitir notas fiscais.",
-  "category": "INCIDENTE_SISTEMA",
-  "requesterId": 1
+  "category": "INCIDENTE_SISTEMA"
 }
 
-### 2. Criar Chamado: INCIDENTE_EQUIPAMENTO (Nasce como CRIADO, Prioridade MEDIA + Asset Obrigatorio) -> 201 Created
+### 2. Criar Chamado: INCIDENTE_EQUIPAMENTO (Requester extraído do JWT + Asset Obrigatório) -> 201 Created
 POST http://localhost:8080/tickets
+Authorization: Bearer {{requesterToken}}
 Content-Type: application/json
 
 {
   "title": "Notebook nao liga",
   "description": "Aparelho desligou repentinamente e nao da sinal de carga.",
   "category": "INCIDENTE_EQUIPAMENTO",
-  "requesterId": 1,
   "assetId": 1
 }
 
-### 3. Criar Chamado: DUVIDA (Nasce como CRIADO, Prioridade BAIXA) -> 201 Created
+### 3. Criar Chamado: DUVIDA -> 201 Created
 POST http://localhost:8080/tickets
+Authorization: Bearer {{requesterToken}}
 Content-Type: application/json
 
 {
   "title": "Duvida sobre acesso a VPN",
   "description": "Como configuro o autenticador no novo celular?",
-  "category": "DUVIDA",
-  "requesterId": 1
+  "category": "DUVIDA"
 }
 
-### 4. Listar Todos os Chamados (GET /tickets) -> 200 OK
+### 4. Listar Chamados (Technician/Admin vê todos; Requester vê os seus) -> 200 OK
 GET http://localhost:8080/tickets
+Authorization: Bearer {{techToken}}
 
-### 5. Buscar Chamado por ID (GET /tickets/{id}) -> 200 OK
+### 5. Buscar Chamado por ID -> 200 OK
 GET http://localhost:8080/tickets/1
+Authorization: Bearer {{techToken}}
 
-### 6. Listar Chamados por Solicitante (GET /tickets/requester/{requesterId}) -> 200 OK
+### 6. Listar Chamados por Solicitante -> 200 OK
 GET http://localhost:8080/tickets/requester/1
+Authorization: Bearer {{techToken}}
 
-### 7. Atribuir Tecnico (PATCH /tickets/{id}/technician) -> Transita automaticamente de CRIADO para ABERTO -> 200 OK
+### 7. Atribuir Tecnico (Transita automaticamente de CRIADO para ABERTO) -> 200 OK
 PATCH http://localhost:8080/tickets/1/technician
+Authorization: Bearer {{techToken}}
 Content-Type: application/json
 
 {
   "technicianId": 2
 }
 
-### 8. Atualizar Status para EM_ATENDIMENTO (PATCH /tickets/{id}/status) -> 200 OK
+### 8. Atualizar Status para EM_ATENDIMENTO (Apenas técnico atribuído ou Admin) -> 200 OK
 PATCH http://localhost:8080/tickets/1/status
+Authorization: Bearer {{techToken}}
 Content-Type: application/json
 
 {
   "status": "EM_ATENDIMENTO"
 }
 
-### 9. Transitar para RESOLVIDO com Solucao Obrigatoria (PATCH /tickets/{id}/status) -> 200 OK
+### 9. Transitar para RESOLVIDO com Solucao Obrigatoria -> 200 OK
 PATCH http://localhost:8080/tickets/1/status
+Authorization: Bearer {{techToken}}
 Content-Type: application/json
 
 {
@@ -130,16 +192,18 @@ Content-Type: application/json
   "solution": "Reiniciado o servico do banco de dados do ERP e liberada a fila de integracao."
 }
 
-### 10. Transitar de RESOLVIDO para FECHADO (PATCH /tickets/{id}/status) -> 200 OK
+### 10. Transitar de RESOLVIDO para FECHADO -> 200 OK
 PATCH http://localhost:8080/tickets/1/status
+Authorization: Bearer {{techToken}}
 Content-Type: application/json
 
 {
   "status": "FECHADO"
 }
 
-### 11. Cancelar Chamado com status CRIADO ou ABERTO (PATCH /tickets/{id}/status) -> 200 OK
+### 11. Cancelar Chamado (Requester pode cancelar apenas seu chamado com status CRIADO ou ABERTO) -> 200 OK
 PATCH http://localhost:8080/tickets/3/status
+Authorization: Bearer {{requesterToken}}
 Content-Type: application/json
 
 {
@@ -148,100 +212,77 @@ Content-Type: application/json
 
 
 ### =======================================================
-### CHAMADOS / TICKETS (Etapa 4) - CENARIOS DE ERRO / REGRAS
+### COMENTARIOS / HISTORICO DE CHAMADOS (Etapa 5 e 6)
 ### =======================================================
 
-### Erro 1: INCIDENTE_EQUIPAMENTO sem enviar assetId -> 400 Bad Request
+### 1. Adicionar Comentario ao Chamado (Autor extraído do JWT) -> 201 Created
+POST http://localhost:8080/tickets/1/comments
+Authorization: Bearer {{techToken}}
+Content-Type: application/json
+
+{
+  "content": "Verificamos que o serviço já foi restabelecido e estamos aguardando a confirmação do usuário."
+}
+
+### 2. Listar Historico de Comentarios do Chamado -> 200 OK
+GET http://localhost:8080/tickets/1/comments
+Authorization: Bearer {{requesterToken}}
+
+
+### =======================================================
+### CENARIOS DE ERRO E VALIDAÇÕES DE SEGURANÇA
+### =======================================================
+
+### Erro 1: Login com senha incorreta -> 401 Unauthorized
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@helpdesk.com",
+  "password": "senhaIncorreta"
+}
+
+### Erro 2: Requisição sem token em endpoint protegido -> 401 Unauthorized
+GET http://localhost:8080/assets
+
+### Erro 3: Requester tentando criar ativo (Apenas ADMIN) -> 403 Forbidden
+POST http://localhost:8080/assets
+Authorization: Bearer {{requesterToken}}
+Content-Type: application/json
+
+{
+  "code": "NOTE-HACK",
+  "type": "Notebook",
+  "status": "IN_USE"
+}
+
+### Erro 4: Requester tentando listar usuários (Apenas ADMIN) -> 403 Forbidden
+GET http://localhost:8080/users
+Authorization: Bearer {{requesterToken}}
+
+### Erro 5: INCIDENTE_EQUIPAMENTO sem enviar assetId -> 400 Bad Request
 POST http://localhost:8080/tickets
+Authorization: Bearer {{requesterToken}}
 Content-Type: application/json
 
 {
   "title": "Teclado quebrado",
   "description": "Faltou enviar o ID do equipamento",
-  "category": "INCIDENTE_EQUIPAMENTO",
-  "requesterId": 1
+  "category": "INCIDENTE_EQUIPAMENTO"
 }
 
-### Erro 2: Vincular ativo com status INACTIVE ou DISCARDED -> 400 Bad Request
+### Erro 6: Vincular ativo com status INACTIVE -> 400 Bad Request
 POST http://localhost:8080/tickets
+Authorization: Bearer {{requesterToken}}
 Content-Type: application/json
 
 {
   "title": "Monitor piscando",
   "description": "Tentativa de usar ativo inativo",
   "category": "INCIDENTE_EQUIPAMENTO",
-  "requesterId": 1,
   "assetId": 2
-}
-
-### Erro 3: Atribuir novo tecnico a chamado que ja possui tecnico -> 400 Bad Request
-PATCH http://localhost:8080/tickets/1/technician
-Content-Type: application/json
-
-{
-  "technicianId": 1
-}
-
-### Erro 4: Transitar para RESOLVIDO sem solucao -> 400 Bad Request
-PATCH http://localhost:8080/tickets/2/status
-Content-Type: application/json
-
-{
-  "status": "RESOLVIDO",
-  "solution": ""
-}
-
-### Erro 5: Transitar para FECHADO sem passar por RESOLVIDO -> 400 Bad Request
-PATCH http://localhost:8080/tickets/2/status
-Content-Type: application/json
-
-{
-  "status": "FECHADO",
-  "solution": "Tentando fechar direto do estado ABERTO"
-}
-
-### Erro 6: Cancelar chamado ja RESOLVIDO ou FECHADO -> 400 Bad Request
-PATCH http://localhost:8080/tickets/1/status
-Content-Type: application/json
-
-{
-  "status": "CANCELADO"
 }
 
 ### Erro 7: Buscar Chamado por ID Inexistente -> 404 Not Found
 GET http://localhost:8080/tickets/9999
-
-
-### =======================================================
-### COMENTARIOS / HISTORICO DE CHAMADOS (Etapa 5)
-### =======================================================
-
-### 1. Adicionar Comentario ao Chamado -> 201 Created
-POST http://localhost:8080/tickets/1/comments
-Content-Type: application/json
-
-{
-  "content": "Verificamos que o serviço já foi restabelecido e estamos aguardando a confirmação do usuário.",
-  "userId": 2
-}
-
-### 2. Listar Historico de Comentarios do Chamado -> 200 OK
-GET http://localhost:8080/tickets/1/comments
-
-### 3. Erro: Adicionar Comentario com Conteudo Vazio -> 400 Bad Request
-POST http://localhost:8080/tickets/1/comments
-Content-Type: application/json
-
-{
-  "content": "   ",
-  "userId": 2
-}
-
-### 4. Erro: Adicionar Comentario para Chamado Inexistente -> 404 Not Found
-POST http://localhost:8080/tickets/9999/comments
-Content-Type: application/json
-
-{
-  "content": "Tentativa de comentar em chamado inexistente",
-  "userId": 1
-}
+Authorization: Bearer {{adminToken}}

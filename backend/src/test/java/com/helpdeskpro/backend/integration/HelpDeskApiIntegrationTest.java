@@ -14,8 +14,10 @@ import com.helpdeskpro.backend.dto.TicketAssignTechnicianDTO;
 import com.helpdeskpro.backend.dto.TicketRequestDTO;
 import com.helpdeskpro.backend.dto.TicketStatusUpdateDTO;
 import com.helpdeskpro.backend.repositories.AssetRepository;
+import com.helpdeskpro.backend.repositories.TicketCommentRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
+import com.helpdeskpro.backend.security.TokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,20 +25,28 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
+
+import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@Transactional
 @ActiveProfiles("test")
 class HelpDeskApiIntegrationTest {
 
@@ -52,20 +62,42 @@ class HelpDeskApiIntegrationTest {
     @Autowired
     private TicketRepository ticketRepository;
 
+    @Autowired
+    private TicketCommentRepository ticketCommentRepository;
+
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private MockMvc mockMvc;
+    private User adminUser;
+    private String adminToken;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
+
+        ticketCommentRepository.deleteAll();
         ticketRepository.deleteAll();
         assetRepository.deleteAll();
         userRepository.deleteAll();
+
+        adminUser = saveUser("Admin Geral", "admin.master@helpdesk.com", UserRole.ADMIN);
+        adminToken = tokenService.generateToken(adminUser);
     }
 
     private User saveUser(String name, String email, UserRole role) {
-        return userRepository.save(new User(name, email, "senha123", role));
+        return userRepository.save(new User(name, email, passwordEncoder.encode("senha123"), role));
+    }
+
+    private String token(User user) {
+        return tokenService.generateToken(user);
     }
 
     private Asset saveAsset(String code, String type, AssetStatus status) {
@@ -94,6 +126,7 @@ class HelpDeskApiIntegrationTest {
                 }
                 """;
             mockMvc.perform(post("/users")
+                            .header("Authorization", "Bearer " + adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requesterJson))
                     .andExpect(status().isOk())
@@ -111,6 +144,7 @@ class HelpDeskApiIntegrationTest {
                 }
                 """;
             mockMvc.perform(post("/users")
+                            .header("Authorization", "Bearer " + adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(techJson))
                     .andExpect(status().isOk())
@@ -126,11 +160,13 @@ class HelpDeskApiIntegrationTest {
             saveUser("Usuario 1", "u1@helpdesk.com", UserRole.REQUESTER);
             saveUser("Usuario 2", "u2@helpdesk.com", UserRole.TECHNICIAN);
 
-            mockMvc.perform(get("/users"))
+            mockMvc.perform(get("/users")
+                            .header("Authorization", "Bearer " + adminToken))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(2)))
+                    .andExpect(jsonPath("$", hasSize(3))) // admin + 2 usuários
                     .andExpect(jsonPath("$[0].password").doesNotExist())
-                    .andExpect(jsonPath("$[1].password").doesNotExist());
+                    .andExpect(jsonPath("$[1].password").doesNotExist())
+                    .andExpect(jsonPath("$[2].password").doesNotExist());
         }
 
         @Test
@@ -139,6 +175,7 @@ class HelpDeskApiIntegrationTest {
             AssetRequestDTO dto = new AssetRequestDTO("NOTE-101", "Notebook", "Dell Latitude 3420", AssetStatus.IN_USE);
 
             mockMvc.perform(post("/assets")
+                            .header("Authorization", "Bearer " + adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -153,6 +190,7 @@ class HelpDeskApiIntegrationTest {
             AssetRequestDTO dto = new AssetRequestDTO("MON-202", "Monitor", "LG Ultrawide", AssetStatus.INACTIVE);
 
             mockMvc.perform(post("/assets")
+                            .header("Authorization", "Bearer " + adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -166,7 +204,8 @@ class HelpDeskApiIntegrationTest {
             saveAsset("NOTE-001", "Notebook", AssetStatus.IN_USE);
             saveAsset("MON-001", "Monitor", AssetStatus.INACTIVE);
 
-            mockMvc.perform(get("/assets"))
+            mockMvc.perform(get("/assets")
+                            .header("Authorization", "Bearer " + adminToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(2)));
         }
@@ -175,9 +214,10 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("6. Criar ticket INCIDENTE_SISTEMA com prioridade ALTA e status CRIADO")
         void cenario6_criarTicketIncidenteSistema() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
-            TicketRequestDTO dto = new TicketRequestDTO("ERP Fora do ar", "Banco fora", TicketCategory.INCIDENTE_SISTEMA, requester.getId(), null);
+            TicketRequestDTO dto = new TicketRequestDTO("ERP Fora do ar", "Banco fora", TicketCategory.INCIDENTE_SISTEMA, null);
 
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -192,9 +232,10 @@ class HelpDeskApiIntegrationTest {
         void cenario7_criarTicketIncidenteEquipamento() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
             Asset asset = saveAsset("NOTE-303", "Notebook", AssetStatus.IN_USE);
-            TicketRequestDTO dto = new TicketRequestDTO("Tela quebrada", "Display quebrou", TicketCategory.INCIDENTE_EQUIPAMENTO, requester.getId(), asset.getId());
+            TicketRequestDTO dto = new TicketRequestDTO("Tela quebrada", "Display quebrou", TicketCategory.INCIDENTE_EQUIPAMENTO, asset.getId());
 
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -208,9 +249,10 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("8. Criar ticket DUVIDA com prioridade BAIXA e status CRIADO")
         void cenario8_criarTicketDuvida() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
-            TicketRequestDTO dto = new TicketRequestDTO("Como usar VPN", "Duvida sobre token", TicketCategory.DUVIDA, requester.getId(), null);
+            TicketRequestDTO dto = new TicketRequestDTO("Como usar VPN", "Duvida sobre token", TicketCategory.DUVIDA, null);
 
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -222,10 +264,12 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("9. Listar todos os tickets")
         void cenario9_listarTodosOsTickets() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User technician = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             saveTicket("T1", "Desc 1", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.CRIADO);
             saveTicket("T2", "Desc 2", TicketCategory.INCIDENTE_SISTEMA, TicketPriority.ALTA, requester, null, TicketStatus.CRIADO);
 
-            mockMvc.perform(get("/tickets"))
+            mockMvc.perform(get("/tickets")
+                            .header("Authorization", "Bearer " + token(technician)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(2)));
         }
@@ -236,7 +280,8 @@ class HelpDeskApiIntegrationTest {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
             Ticket ticket = saveTicket("Ticket Unico", "Descricao detalhada", TicketCategory.SOLICITACAO_ACESSO, TicketPriority.MEDIA, requester, null, TicketStatus.CRIADO);
 
-            mockMvc.perform(get("/tickets/" + ticket.getId()))
+            mockMvc.perform(get("/tickets/" + ticket.getId())
+                            .header("Authorization", "Bearer " + token(requester)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id", is(ticket.getId().intValue())))
                     .andExpect(jsonPath("$.title", is("Ticket Unico")));
@@ -252,7 +297,8 @@ class HelpDeskApiIntegrationTest {
             saveTicket("Ticket R1 B", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester1, null, TicketStatus.CRIADO);
             saveTicket("Ticket R2 A", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester2, null, TicketStatus.CRIADO);
 
-            mockMvc.perform(get("/tickets/requester/" + requester1.getId()))
+            mockMvc.perform(get("/tickets/requester/" + requester1.getId())
+                            .header("Authorization", "Bearer " + token(requester1)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(2)))
                     .andExpect(jsonPath("$[0].requesterId", is(requester1.getId().intValue())))
@@ -269,6 +315,7 @@ class HelpDeskApiIntegrationTest {
             TicketAssignTechnicianDTO assignDTO = new TicketAssignTechnicianDTO(technician.getId());
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
+                            .header("Authorization", "Bearer " + token(technician))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(assignDTO)))
                     .andExpect(status().isOk())
@@ -281,11 +328,15 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("13. Mudar status de ABERTO para EM_ATENDIMENTO")
         void cenario13_mudarParaEmAtendimento() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User technician = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.ABERTO);
+            ticket.setTechnician(technician);
+            ticketRepository.save(ticket);
 
             TicketStatusUpdateDTO statusDTO = new TicketStatusUpdateDTO(TicketStatus.EM_ATENDIMENTO, null);
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(technician))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(statusDTO)))
                     .andExpect(status().isOk())
@@ -296,11 +347,15 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("14. Mudar status de EM_ATENDIMENTO para RESOLVIDO com solution preenchida")
         void cenario14_mudarParaResolvidoComSolution() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User technician = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.EM_ATENDIMENTO);
+            ticket.setTechnician(technician);
+            ticketRepository.save(ticket);
 
             TicketStatusUpdateDTO statusDTO = new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, "Resolvido com reinicialização do roteador");
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(technician))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(statusDTO)))
                     .andExpect(status().isOk())
@@ -312,13 +367,16 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("15. Mudar de RESOLVIDO para FECHADO com sucesso")
         void cenario15_mudarDeResolvidoParaFechado() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User technician = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.RESOLVIDO);
+            ticket.setTechnician(technician);
             ticket.setSolution("Solução já validada");
             ticketRepository.save(ticket);
 
             TicketStatusUpdateDTO statusDTO = new TicketStatusUpdateDTO(TicketStatus.FECHADO, "Solução já validada");
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(technician))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(statusDTO)))
                     .andExpect(status().isOk())
@@ -335,12 +393,14 @@ class HelpDeskApiIntegrationTest {
             TicketStatusUpdateDTO cancelDTO = new TicketStatusUpdateDTO(TicketStatus.CANCELADO, null);
 
             mockMvc.perform(patch("/tickets/" + ticketCriado.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(cancelDTO)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status", is("CANCELADO")));
 
             mockMvc.perform(patch("/tickets/" + ticketAberto.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(cancelDTO)))
                     .andExpect(status().isOk())
@@ -356,9 +416,10 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("1. Criar INCIDENTE_EQUIPAMENTO sem assetId deve retornar 400 Bad Request")
         void erro1_incidenteEquipamentoSemAssetId() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
-            TicketRequestDTO dto = new TicketRequestDTO("Teclado quebrado", "Tecla nao responde", TicketCategory.INCIDENTE_EQUIPAMENTO, requester.getId(), null);
+            TicketRequestDTO dto = new TicketRequestDTO("Teclado quebrado", "Tecla nao responde", TicketCategory.INCIDENTE_EQUIPAMENTO, null);
 
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isBadRequest())
@@ -371,9 +432,10 @@ class HelpDeskApiIntegrationTest {
         void erro2_incidenteEquipamentoAssetInactive() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
             Asset inactiveAsset = saveAsset("PC-999", "Desktop", AssetStatus.INACTIVE);
-            TicketRequestDTO dto = new TicketRequestDTO("PC com tela preta", "Nao da video", TicketCategory.INCIDENTE_EQUIPAMENTO, requester.getId(), inactiveAsset.getId());
+            TicketRequestDTO dto = new TicketRequestDTO("PC com tela preta", "Nao da video", TicketCategory.INCIDENTE_EQUIPAMENTO, inactiveAsset.getId());
 
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isBadRequest())
@@ -384,10 +446,11 @@ class HelpDeskApiIntegrationTest {
         @Test
         @DisplayName("3. Criar ticket com requester que não tenha papel REQUESTER deve retornar 400 Bad Request")
         void erro3_requesterNaoTemPapelRequester() throws Exception {
-            User adminUser = saveUser("Admin", "admin@helpdesk.com", UserRole.ADMIN);
-            TicketRequestDTO dto = new TicketRequestDTO("Duvida", "Desc", TicketCategory.DUVIDA, adminUser.getId(), null);
+            User adminUser = saveUser("Admin", "admin2@helpdesk.com", UserRole.ADMIN);
+            TicketRequestDTO dto = new TicketRequestDTO("Duvida", "Desc", TicketCategory.DUVIDA, null);
 
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(adminUser))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isBadRequest())
@@ -399,12 +462,14 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("4. Atribuir usuário que não tenha papel TECHNICIAN deve retornar 400 Bad Request")
         void erro4_atribuirUsuarioNaoTechnician() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User technician = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             User nonTechUser = saveUser("Outro Solicitante", "outro@helpdesk.com", UserRole.REQUESTER);
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.CRIADO);
 
             TicketAssignTechnicianDTO assignDTO = new TicketAssignTechnicianDTO(nonTechUser.getId());
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
+                            .header("Authorization", "Bearer " + token(technician))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(assignDTO)))
                     .andExpect(status().isBadRequest())
@@ -426,6 +491,7 @@ class HelpDeskApiIntegrationTest {
             TicketAssignTechnicianDTO assignDTO = new TicketAssignTechnicianDTO(tech2.getId());
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
+                            .header("Authorization", "Bearer " + token(tech1))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(assignDTO)))
                     .andExpect(status().isBadRequest())
@@ -437,11 +503,15 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("6. Mudar para RESOLVIDO sem solution deve retornar 400 Bad Request")
         void erro6_mudarParaResolvidoSemSolution() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User tech = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.EM_ATENDIMENTO);
+            ticket.setTechnician(tech);
+            ticketRepository.save(ticket);
 
             TicketStatusUpdateDTO statusDTO = new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, "   ");
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(tech))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(statusDTO)))
                     .andExpect(status().isBadRequest())
@@ -453,11 +523,15 @@ class HelpDeskApiIntegrationTest {
         @DisplayName("7. Mudar diretamente para FECHADO sem RESOLVIDO deve retornar 400 Bad Request")
         void erro7_mudarParaFechadoSemResolvido() throws Exception {
             User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User tech = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.ABERTO);
+            ticket.setTechnician(tech);
+            ticketRepository.save(ticket);
 
             TicketStatusUpdateDTO statusDTO = new TicketStatusUpdateDTO(TicketStatus.FECHADO, "Tentando fechar direto");
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(tech))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(statusDTO)))
                     .andExpect(status().isBadRequest())
@@ -476,6 +550,7 @@ class HelpDeskApiIntegrationTest {
             TicketStatusUpdateDTO cancelDTO = new TicketStatusUpdateDTO(TicketStatus.CANCELADO, null);
 
             mockMvc.perform(patch("/tickets/" + ticketResolvido.getId() + "/status")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(cancelDTO)))
                     .andExpect(status().isBadRequest())
@@ -486,28 +561,23 @@ class HelpDeskApiIntegrationTest {
         @Test
         @DisplayName("9. Buscar ticket inexistente deve retornar 404 Not Found")
         void erro9_buscarTicketInexistente() throws Exception {
-            mockMvc.perform(get("/tickets/999999"))
+            mockMvc.perform(get("/tickets/999999")
+                            .header("Authorization", "Bearer " + adminToken))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)))
                     .andExpect(jsonPath("$.message", is("Chamado não encontrado com o id: 999999")));
         }
 
         @Test
-        @DisplayName("10. Usar requester, technician ou asset inexistente deve retornar 404 Not Found")
+        @DisplayName("10. Usar asset ou technician inexistente deve retornar 404 Not Found")
         void erro10_usarEntidadesInexistentes() throws Exception {
-            // Requester inexistente na criação
-            TicketRequestDTO reqInexistente = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, 999999L, null);
-            mockMvc.perform(post("/tickets")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(reqInexistente)))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.status", is(404)))
-                    .andExpect(jsonPath("$.message", is("Solicitante não encontrado com o id: 999999")));
+            User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
+            User technician = saveUser("Tecnico", "tech@helpdesk.com", UserRole.TECHNICIAN);
 
             // Asset inexistente na criação
-            User requester = saveUser("Solicitante", "req@helpdesk.com", UserRole.REQUESTER);
-            TicketRequestDTO assetInexistente = new TicketRequestDTO("Titulo", "Desc", TicketCategory.INCIDENTE_EQUIPAMENTO, requester.getId(), 999999L);
+            TicketRequestDTO assetInexistente = new TicketRequestDTO("Titulo", "Desc", TicketCategory.INCIDENTE_EQUIPAMENTO, 999999L);
             mockMvc.perform(post("/tickets")
+                            .header("Authorization", "Bearer " + token(requester))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(assetInexistente)))
                     .andExpect(status().isNotFound())
@@ -518,14 +588,16 @@ class HelpDeskApiIntegrationTest {
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.CRIADO);
             TicketAssignTechnicianDTO techInexistente = new TicketAssignTechnicianDTO(999999L);
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
+                            .header("Authorization", "Bearer " + token(technician))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(techInexistente)))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)))
                     .andExpect(jsonPath("$.message", is("Técnico não encontrado com o id: 999999")));
 
-            // Requester inexistente na consulta de tickets por solicitante
-            mockMvc.perform(get("/tickets/requester/999999"))
+            // Requester inexistente na consulta de tickets por solicitante (consultado por Admin)
+            mockMvc.perform(get("/tickets/requester/999999")
+                            .header("Authorization", "Bearer " + adminToken))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)))
                     .andExpect(jsonPath("$.message", is("Solicitante não encontrado com o id: 999999")));

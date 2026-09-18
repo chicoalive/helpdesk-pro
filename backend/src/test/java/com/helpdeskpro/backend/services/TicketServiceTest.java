@@ -19,6 +19,7 @@ import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.AssetRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
+import com.helpdeskpro.backend.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -52,28 +54,34 @@ class TicketServiceTest {
     @Mock
     private AssetRepository assetRepository;
 
+    @Mock
+    private SecurityUtils securityUtils;
+
     @InjectMocks
     private TicketService ticketService;
 
     private User requester;
     private User technician;
+    private User admin;
     private Asset activeAsset;
 
     @BeforeEach
     void setUp() {
         requester = new User("Usuario Solicitante", "user@helpdesk.com", "123", UserRole.REQUESTER);
         technician = new User("Tecnico Suporte", "tech@helpdesk.com", "123", UserRole.TECHNICIAN);
+        admin = new User("Administrador", "admin@helpdesk.com", "123", UserRole.ADMIN);
         ReflectionTestUtils.setField(requester, "id", 1L);
         ReflectionTestUtils.setField(technician, "id", 2L);
+        ReflectionTestUtils.setField(admin, "id", 3L);
         activeAsset = new Asset(1L, "NOTE-001", "Notebook", "Dell Latitude", AssetStatus.IN_USE);
     }
 
     @Test
     @DisplayName("Deve criar chamado com prioridade ALTA para INCIDENTE_SISTEMA e status CRIADO com técnico nulo")
     void createTicket_IncidenteSistema_PriorityAlta() {
-        TicketRequestDTO dto = new TicketRequestDTO("Erro no ERP", "Sistema fora do ar", TicketCategory.INCIDENTE_SISTEMA, 1L, null);
+        TicketRequestDTO dto = new TicketRequestDTO("Erro no ERP", "Sistema fora do ar", TicketCategory.INCIDENTE_SISTEMA, null);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> {
             Ticket t = invocation.getArgument(0);
             t.setId(10L);
@@ -92,9 +100,9 @@ class TicketServiceTest {
     @Test
     @DisplayName("Deve criar chamado com prioridade BAIXA para DUVIDA")
     void createTicket_Duvida_PriorityBaixa() {
-        TicketRequestDTO dto = new TicketRequestDTO("Duvida sobre VPN", "Como conectar?", TicketCategory.DUVIDA, 1L, null);
+        TicketRequestDTO dto = new TicketRequestDTO("Duvida sobre VPN", "Como conectar?", TicketCategory.DUVIDA, null);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TicketResponseDTO response = ticketService.createTicket(dto);
@@ -105,9 +113,9 @@ class TicketServiceTest {
     @Test
     @DisplayName("Deve criar chamado com prioridade MEDIA para SOLICITACAO_ACESSO e OUTRO")
     void createTicket_Outro_PriorityMedia() {
-        TicketRequestDTO dto = new TicketRequestDTO("Outro assunto", "Descricao", TicketCategory.OUTRO, 1L, null);
+        TicketRequestDTO dto = new TicketRequestDTO("Outro assunto", "Descricao", TicketCategory.OUTRO, null);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TicketResponseDTO response = ticketService.createTicket(dto);
@@ -118,9 +126,9 @@ class TicketServiceTest {
     @Test
     @DisplayName("Deve lançar BusinessRuleException ao criar INCIDENTE_EQUIPAMENTO sem assetId")
     void createTicket_IncidenteEquipamento_WithoutAsset_ThrowsException() {
-        TicketRequestDTO dto = new TicketRequestDTO("Tela azul", "Notebook travou", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L, null);
+        TicketRequestDTO dto = new TicketRequestDTO("Tela azul", "Notebook travou", TicketCategory.INCIDENTE_EQUIPAMENTO, null);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
         assertEquals("Para a categoria INCIDENTE_EQUIPAMENTO, o envio do ativo (assetId) é obrigatório.", ex.getMessage());
@@ -130,9 +138,9 @@ class TicketServiceTest {
     @Test
     @DisplayName("Deve lançar AssetNotFoundException se assetId informado não existir")
     void createTicket_AssetNotFound_ThrowsException() {
-        TicketRequestDTO dto = new TicketRequestDTO("Tela azul", "Notebook travou", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L, 99L);
+        TicketRequestDTO dto = new TicketRequestDTO("Tela azul", "Notebook travou", TicketCategory.INCIDENTE_EQUIPAMENTO, 99L);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(assetRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(AssetNotFoundException.class, () -> ticketService.createTicket(dto));
@@ -142,9 +150,9 @@ class TicketServiceTest {
     @DisplayName("Deve lançar BusinessRuleException se o ativo vinculado estiver INACTIVE")
     void createTicket_InactiveAsset_ThrowsException() {
         Asset inactiveAsset = new Asset(2L, "MON-001", "Monitor", "LG", AssetStatus.INACTIVE);
-        TicketRequestDTO dto = new TicketRequestDTO("Problema monitor", "Pisca sem parar", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L, 2L);
+        TicketRequestDTO dto = new TicketRequestDTO("Problema monitor", "Pisca sem parar", TicketCategory.INCIDENTE_EQUIPAMENTO, 2L);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(assetRepository.findById(2L)).thenReturn(Optional.of(inactiveAsset));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
@@ -155,9 +163,9 @@ class TicketServiceTest {
     @DisplayName("Deve lançar BusinessRuleException se o ativo vinculado estiver DISCARDED")
     void createTicket_DiscardedAsset_ThrowsException() {
         Asset discardedAsset = new Asset(3L, "PC-001", "Desktop", "Antigo", AssetStatus.DISCARDED);
-        TicketRequestDTO dto = new TicketRequestDTO("Problema PC", "Nao liga", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L, 3L);
+        TicketRequestDTO dto = new TicketRequestDTO("Problema PC", "Nao liga", TicketCategory.INCIDENTE_EQUIPAMENTO, 3L);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(assetRepository.findById(3L)).thenReturn(Optional.of(discardedAsset));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
@@ -167,9 +175,9 @@ class TicketServiceTest {
     @Test
     @DisplayName("Deve criar INCIDENTE_EQUIPAMENTO com sucesso quando ativo válido estiver associado")
     void createTicket_IncidenteEquipamento_Success() {
-        TicketRequestDTO dto = new TicketRequestDTO("Teclado quebrado", "Tecla falhando", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L, 1L);
+        TicketRequestDTO dto = new TicketRequestDTO("Teclado quebrado", "Tecla falhando", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(assetRepository.findById(1L)).thenReturn(Optional.of(activeAsset));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -181,13 +189,13 @@ class TicketServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar UserNotFoundException ao criar chamado com solicitante inexistente")
-    void createTicket_RequesterNotFound_ThrowsException() {
-        TicketRequestDTO dto = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, 99L, null);
+    @DisplayName("Deve lançar AccessDeniedException ao criar chamado com usuário não autenticado")
+    void createTicket_Unauthenticated_ThrowsException() {
+        TicketRequestDTO dto = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, null);
 
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        when(securityUtils.getCurrentUser()).thenThrow(new AccessDeniedException("Usuário não autenticado."));
 
-        assertThrows(UserNotFoundException.class, () -> ticketService.createTicket(dto));
+        assertThrows(AccessDeniedException.class, () -> ticketService.createTicket(dto));
     }
 
     @Test
@@ -195,9 +203,9 @@ class TicketServiceTest {
     void createTicket_RequesterInvalidRole_ThrowsException() {
         User adminUser = new User("Admin", "admin@helpdesk.com", "123", UserRole.ADMIN);
         ReflectionTestUtils.setField(adminUser, "id", 10L);
-        TicketRequestDTO dto = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, 10L, null);
+        TicketRequestDTO dto = new TicketRequestDTO("Titulo", "Desc", TicketCategory.DUVIDA, null);
 
-        when(userRepository.findById(10L)).thenReturn(Optional.of(adminUser));
+        when(securityUtils.getCurrentUser()).thenReturn(adminUser);
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
         assertEquals("O solicitante deve ter o papel REQUESTER.", ex.getMessage());
@@ -210,6 +218,7 @@ class TicketServiceTest {
         assertEquals(TicketStatus.CRIADO, ticket.getStatus());
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(2L);
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(userRepository.findById(2L)).thenReturn(Optional.of(technician));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -223,6 +232,15 @@ class TicketServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar AccessDeniedException ao tentar atribuir técnico como REQUESTER")
+    void assignTechnician_AsRequester_ThrowsException() {
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+        TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(2L);
+
+        assertThrows(AccessDeniedException.class, () -> ticketService.assignTechnician(1L, dto));
+    }
+
+    @Test
     @DisplayName("Deve lançar BusinessRuleException ao tentar atribuir usuário sem papel TECHNICIAN")
     void assignTechnician_InvalidRole_ThrowsException() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
@@ -230,6 +248,7 @@ class TicketServiceTest {
         ReflectionTestUtils.setField(nonTechUser, "id", 5L);
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(5L);
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(userRepository.findById(5L)).thenReturn(Optional.of(nonTechUser));
 
@@ -244,6 +263,7 @@ class TicketServiceTest {
         ticket.setTechnician(technician);
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(3L);
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
@@ -251,12 +271,14 @@ class TicketServiceTest {
     }
 
     @Test
-    @DisplayName("Deve transitar status de ABERTO para EM_ATENDIMENTO")
+    @DisplayName("Deve transitar status de ABERTO para EM_ATENDIMENTO por técnico atribuído")
     void updateTicketStatus_ToEmAtendimento_Success() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setStatus(TicketStatus.ABERTO);
+        ticket.setTechnician(technician);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.EM_ATENDIMENTO, null);
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -266,12 +288,44 @@ class TicketServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar AccessDeniedException se técnico tentar alterar chamado não atribuído a ele")
+    void updateTicketStatus_TechnicianNotAssigned_ThrowsException() {
+        User otherTech = new User("Outro Tecnico", "other@helpdesk.com", "123", UserRole.TECHNICIAN);
+        ReflectionTestUtils.setField(otherTech, "id", 9L);
+
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
+        ticket.setStatus(TicketStatus.ABERTO);
+        ticket.setTechnician(otherTech);
+        TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.EM_ATENDIMENTO, null);
+
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+
+        assertThrows(AccessDeniedException.class, () -> ticketService.updateTicketStatus(1L, dto));
+    }
+
+    @Test
+    @DisplayName("Deve lançar AccessDeniedException se solicitante tentar transição que não seja CANCELADO")
+    void updateTicketStatus_RequesterNonCancel_ThrowsException() {
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
+        ticket.setStatus(TicketStatus.ABERTO);
+        TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.EM_ATENDIMENTO, null);
+
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+
+        assertThrows(AccessDeniedException.class, () -> ticketService.updateTicketStatus(1L, dto));
+    }
+
+    @Test
     @DisplayName("Deve lançar BusinessRuleException para transição para RESOLVIDO sem solução")
     void updateTicketStatus_ToResolvido_WithoutSolution_ThrowsException() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setStatus(TicketStatus.EM_ATENDIMENTO);
+        ticket.setTechnician(technician);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, null);
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.updateTicketStatus(1L, dto));
@@ -283,8 +337,10 @@ class TicketServiceTest {
     void updateTicketStatus_ToResolvido_WithSolution_Success() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setStatus(TicketStatus.EM_ATENDIMENTO);
+        ticket.setTechnician(technician);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, "Cabo de rede reconectado");
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -299,8 +355,10 @@ class TicketServiceTest {
     void updateTicketStatus_ToFechado_WhenCurrentNotResolvido_ThrowsException() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setStatus(TicketStatus.EM_ATENDIMENTO);
+        ticket.setTechnician(technician);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.FECHADO, "Solucao");
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.updateTicketStatus(1L, dto));
@@ -312,9 +370,11 @@ class TicketServiceTest {
     void updateTicketStatus_ToFechado_WhenCurrentIsResolvido_Success() {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setStatus(TicketStatus.RESOLVIDO);
+        ticket.setTechnician(technician);
         ticket.setSolution("Solucao prévia");
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.FECHADO, "Solucao prévia");
 
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -330,6 +390,7 @@ class TicketServiceTest {
         ticket.setStatus(TicketStatus.CRIADO);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.CANCELADO, null);
 
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -345,6 +406,7 @@ class TicketServiceTest {
         ticket.setStatus(TicketStatus.ABERTO);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.CANCELADO, null);
 
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -360,6 +422,7 @@ class TicketServiceTest {
         ticket.setStatus(TicketStatus.RESOLVIDO);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.CANCELADO, null);
 
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.updateTicketStatus(1L, dto));
@@ -373,6 +436,7 @@ class TicketServiceTest {
         ticket.setStatus(TicketStatus.CRIADO);
         TicketStatusUpdateDTO dto = new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, "Tentando pular etapas");
 
+        when(securityUtils.getCurrentUser()).thenReturn(admin);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
         assertThrows(BusinessRuleException.class, () -> ticketService.updateTicketStatus(1L, dto));
@@ -384,6 +448,7 @@ class TicketServiceTest {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setId(1L);
 
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(userRepository.existsById(1L)).thenReturn(true);
         when(ticketRepository.findByRequesterId(1L)).thenReturn(List.of(ticket));
 
@@ -391,5 +456,26 @@ class TicketServiceTest {
 
         assertEquals(1, result.size());
         assertEquals("Titulo", result.get(0).getTitle());
+    }
+
+    @Test
+    @DisplayName("Deve lançar AccessDeniedException quando solicitante tentar buscar chamados de outro solicitante")
+    void getTicketsByRequester_OtherRequester_ThrowsException() {
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+
+        assertThrows(AccessDeniedException.class, () -> ticketService.getTicketsByRequester(99L));
+    }
+
+    @Test
+    @DisplayName("Deve lançar AccessDeniedException quando solicitante tentar buscar ticket de outro solicitante por id")
+    void getTicketById_OtherRequester_ThrowsException() {
+        User otherRequester = new User("Outro", "outro@helpdesk.com", "123", UserRole.REQUESTER);
+        ReflectionTestUtils.setField(otherRequester, "id", 99L);
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, otherRequester, null);
+
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+
+        assertThrows(AccessDeniedException.class, () -> ticketService.getTicketById(1L));
     }
 }

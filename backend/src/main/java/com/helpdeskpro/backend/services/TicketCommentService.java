@@ -1,16 +1,17 @@
 package com.helpdeskpro.backend.services;
 
 import com.helpdeskpro.backend.domain.User;
+import com.helpdeskpro.backend.domain.UserRole;
 import com.helpdeskpro.backend.domain.entities.Ticket;
 import com.helpdeskpro.backend.domain.entities.TicketComment;
 import com.helpdeskpro.backend.dto.TicketCommentRequestDTO;
 import com.helpdeskpro.backend.dto.TicketCommentResponseDTO;
 import com.helpdeskpro.backend.exceptions.BusinessRuleException;
 import com.helpdeskpro.backend.exceptions.TicketNotFoundException;
-import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.TicketCommentRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
-import com.helpdeskpro.backend.repositories.UserRepository;
+import com.helpdeskpro.backend.security.SecurityUtils;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,14 +23,14 @@ public class TicketCommentService {
 
     private final TicketCommentRepository ticketCommentRepository;
     private final TicketRepository ticketRepository;
-    private final UserRepository userRepository;
+    private final SecurityUtils securityUtils;
 
     public TicketCommentService(TicketCommentRepository ticketCommentRepository,
                                 TicketRepository ticketRepository,
-                                UserRepository userRepository) {
+                                SecurityUtils securityUtils) {
         this.ticketCommentRepository = ticketCommentRepository;
         this.ticketRepository = ticketRepository;
-        this.userRepository = userRepository;
+        this.securityUtils = securityUtils;
     }
 
     @Transactional
@@ -41,10 +42,13 @@ public class TicketCommentService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
 
-        User author = userRepository.findById(dto.getUserId())
-                .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado com o id: " + dto.getUserId()));
+        User currentUser = securityUtils.getCurrentUser();
 
-        TicketComment comment = new TicketComment(dto.getContent().trim(), ticket, author);
+        if (currentUser.getRole() == UserRole.REQUESTER && !ticket.getRequester().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Você não possui permissão para comentar neste chamado.");
+        }
+
+        TicketComment comment = new TicketComment(dto.getContent().trim(), ticket, currentUser);
         TicketComment saved = ticketCommentRepository.save(comment);
 
         return TicketCommentResponseDTO.fromEntity(saved);
@@ -52,8 +56,13 @@ public class TicketCommentService {
 
     @Transactional(readOnly = true)
     public List<TicketCommentResponseDTO> getCommentsByTicket(Long ticketId) {
-        if (!ticketRepository.existsById(ticketId)) {
-            throw new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId);
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
+
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.REQUESTER && !ticket.getRequester().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Você não possui permissão para visualizar comentários deste chamado.");
         }
 
         return ticketCommentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)

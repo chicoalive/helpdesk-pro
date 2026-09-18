@@ -11,10 +11,9 @@ import com.helpdeskpro.backend.dto.TicketCommentRequestDTO;
 import com.helpdeskpro.backend.dto.TicketCommentResponseDTO;
 import com.helpdeskpro.backend.exceptions.BusinessRuleException;
 import com.helpdeskpro.backend.exceptions.TicketNotFoundException;
-import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.TicketCommentRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
-import com.helpdeskpro.backend.repositories.UserRepository;
+import com.helpdeskpro.backend.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -46,7 +46,7 @@ class TicketCommentServiceTest {
     private TicketRepository ticketRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private SecurityUtils securityUtils;
 
     @InjectMocks
     private TicketCommentService ticketCommentService;
@@ -66,10 +66,10 @@ class TicketCommentServiceTest {
     @Test
     @DisplayName("Deve salvar comentário válido com sucesso")
     void createComment_Valid_Success() {
-        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Verificamos o problema e estamos atuando.", 1L);
+        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Verificamos o problema e estamos atuando.");
 
         when(ticketRepository.findById(10L)).thenReturn(Optional.of(ticket));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketCommentRepository.save(any(TicketComment.class))).thenAnswer(invocation -> {
             TicketComment c = invocation.getArgument(0);
             ReflectionTestUtils.setField(c, "id", 100L);
@@ -93,9 +93,9 @@ class TicketCommentServiceTest {
     @Test
     @DisplayName("Deve lançar BusinessRuleException quando conteúdo for nulo, vazio ou somente espaços")
     void createComment_EmptyContent_ThrowsBusinessRuleException() {
-        TicketCommentRequestDTO nullDto = new TicketCommentRequestDTO(null, 1L);
-        TicketCommentRequestDTO emptyDto = new TicketCommentRequestDTO("", 1L);
-        TicketCommentRequestDTO blankDto = new TicketCommentRequestDTO("   ", 1L);
+        TicketCommentRequestDTO nullDto = new TicketCommentRequestDTO(null);
+        TicketCommentRequestDTO emptyDto = new TicketCommentRequestDTO("");
+        TicketCommentRequestDTO blankDto = new TicketCommentRequestDTO("   ");
 
         assertThrows(BusinessRuleException.class, () -> ticketCommentService.createComment(10L, nullDto));
         assertThrows(BusinessRuleException.class, () -> ticketCommentService.createComment(10L, emptyDto));
@@ -107,7 +107,7 @@ class TicketCommentServiceTest {
     @Test
     @DisplayName("Deve lançar TicketNotFoundException quando ticket não for encontrado")
     void createComment_TicketNotFound_ThrowsTicketNotFoundException() {
-        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário", 1L);
+        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário");
         when(ticketRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(TicketNotFoundException.class, () -> ticketCommentService.createComment(99L, dto));
@@ -115,13 +115,17 @@ class TicketCommentServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar UserNotFoundException quando autor (userId) não for encontrado")
-    void createComment_UserNotFound_ThrowsUserNotFoundException() {
-        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário", 99L);
-        when(ticketRepository.findById(10L)).thenReturn(Optional.of(ticket));
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+    @DisplayName("Deve lançar AccessDeniedException quando solicitante tentar comentar em ticket de outro usuário")
+    void createComment_RequesterOtherTicket_ThrowsAccessDeniedException() {
+        User otherRequester = new User("Outro", "outro@helpdesk.com", "123", UserRole.REQUESTER);
+        ReflectionTestUtils.setField(otherRequester, "id", 99L);
+        Ticket otherTicket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, otherRequester, null);
 
-        assertThrows(UserNotFoundException.class, () -> ticketCommentService.createComment(10L, dto));
+        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário");
+        when(ticketRepository.findById(20L)).thenReturn(Optional.of(otherTicket));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+
+        assertThrows(AccessDeniedException.class, () -> ticketCommentService.createComment(20L, dto));
         verify(ticketCommentRepository, never()).save(any());
     }
 
@@ -129,10 +133,10 @@ class TicketCommentServiceTest {
     @DisplayName("Deve permitir adicionar comentário em ticket com status FECHADO (regra de status livre)")
     void createComment_TicketClosed_Allowed_Success() {
         ticket.setStatus(TicketStatus.FECHADO);
-        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário pós-fechamento do ticket.", 1L);
+        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário pós-fechamento do ticket.");
 
         when(ticketRepository.findById(10L)).thenReturn(Optional.of(ticket));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketCommentRepository.save(any(TicketComment.class))).thenAnswer(invocation -> {
             TicketComment c = invocation.getArgument(0);
             ReflectionTestUtils.setField(c, "id", 101L);
@@ -150,10 +154,10 @@ class TicketCommentServiceTest {
     @DisplayName("Deve permitir adicionar comentário em ticket com status RESOLVIDO (regra de status livre)")
     void createComment_TicketResolved_Allowed_Success() {
         ticket.setStatus(TicketStatus.RESOLVIDO);
-        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário em ticket resolvido.", 1L);
+        TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário em ticket resolvido.");
 
         when(ticketRepository.findById(10L)).thenReturn(Optional.of(ticket));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketCommentRepository.save(any(TicketComment.class))).thenAnswer(invocation -> {
             TicketComment c = invocation.getArgument(0);
             ReflectionTestUtils.setField(c, "id", 102L);
@@ -177,7 +181,8 @@ class TicketCommentServiceTest {
         ReflectionTestUtils.setField(c2, "id", 2L);
         ReflectionTestUtils.setField(c2, "createdAt", LocalDateTime.now().minusMinutes(5));
 
-        when(ticketRepository.existsById(10L)).thenReturn(true);
+        when(ticketRepository.findById(10L)).thenReturn(Optional.of(ticket));
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
         when(ticketCommentRepository.findByTicketIdOrderByCreatedAtAsc(10L)).thenReturn(List.of(c1, c2));
 
         List<TicketCommentResponseDTO> comments = ticketCommentService.getCommentsByTicket(10L);
@@ -191,7 +196,7 @@ class TicketCommentServiceTest {
     @Test
     @DisplayName("Deve lançar TicketNotFoundException ao buscar comentários de ticket inexistente")
     void getCommentsByTicket_TicketNotFound_ThrowsTicketNotFoundException() {
-        when(ticketRepository.existsById(99L)).thenReturn(false);
+        when(ticketRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(TicketNotFoundException.class, () -> ticketCommentService.getCommentsByTicket(99L));
         verify(ticketCommentRepository, never()).findByTicketIdOrderByCreatedAtAsc(any());

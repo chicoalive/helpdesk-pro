@@ -11,6 +11,7 @@ import com.helpdeskpro.backend.dto.TicketCommentRequestDTO;
 import com.helpdeskpro.backend.repositories.TicketCommentRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
+import com.helpdeskpro.backend.security.TokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -35,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-@DisplayName("Testes de Integração - Módulo de Comentários de Chamados (Etapa 5)")
+@DisplayName("Testes de Integração - Módulo de Comentários de Chamados (Etapa 5 e 6)")
 public class TicketCommentIntegrationTest {
 
     @Autowired
@@ -50,6 +53,12 @@ public class TicketCommentIntegrationTest {
     @Autowired
     private TicketCommentRepository ticketCommentRepository;
 
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private MockMvc mockMvc;
@@ -57,18 +66,21 @@ public class TicketCommentIntegrationTest {
     private Long dynamicUserId;
     private Long dynamicTicketId;
     private String dynamicUserName;
+    private String userToken;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
 
-        // Limpeza dos repositórios
         ticketCommentRepository.deleteAll();
         ticketRepository.deleteAll();
         userRepository.deleteAll();
 
-        // Geração dinâmica de registros para teste
-        User user = userRepository.save(new User("Carlos Solicitante", "carlos.comentarios@helpdesk.com", "segredo123", UserRole.REQUESTER));
+        User user = new User("Carlos Solicitante", "carlos.comentarios@helpdesk.com", passwordEncoder.encode("segredo123"), UserRole.REQUESTER);
+        user = userRepository.save(user);
+
         Ticket ticket = ticketRepository.save(new Ticket(
                 "Problema no Sistema ERP",
                 "Erro ao emitir relatórios mensais",
@@ -81,6 +93,7 @@ public class TicketCommentIntegrationTest {
         this.dynamicUserId = user.getId();
         this.dynamicTicketId = ticket.getId();
         this.dynamicUserName = user.getName();
+        this.userToken = tokenService.generateToken(user);
     }
 
     @Nested
@@ -90,9 +103,10 @@ public class TicketCommentIntegrationTest {
         @Test
         @DisplayName("POST /tickets/{id}/comments - Adicionar comentário com sucesso deve retornar 201 Created")
         void cenario1_adicionarComentario_Sucesso() throws Exception {
-            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Primeiro comentário sobre o chamado.", dynamicUserId);
+            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Primeiro comentário sobre o chamado.");
 
             mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -113,9 +127,10 @@ public class TicketCommentIntegrationTest {
             ticket.setStatus(TicketStatus.FECHADO);
             ticketRepository.save(ticket);
 
-            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário em chamado já fechado.", dynamicUserId);
+            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário em chamado já fechado.");
 
             mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
@@ -126,20 +141,23 @@ public class TicketCommentIntegrationTest {
         @Test
         @DisplayName("GET /tickets/{id}/comments - Listar histórico de comentários deve retornar 200 OK e lista ordenada")
         void cenario3_listarComentarios_Sucesso() throws Exception {
-            TicketCommentRequestDTO dto1 = new TicketCommentRequestDTO("Primeiro comentário", dynamicUserId);
-            TicketCommentRequestDTO dto2 = new TicketCommentRequestDTO("Segundo comentário", dynamicUserId);
+            TicketCommentRequestDTO dto1 = new TicketCommentRequestDTO("Primeiro comentário");
+            TicketCommentRequestDTO dto2 = new TicketCommentRequestDTO("Segundo comentário");
 
             mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto1)))
                     .andExpect(status().isCreated());
 
             mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto2)))
                     .andExpect(status().isCreated());
 
-            mockMvc.perform(get("/tickets/" + dynamicTicketId + "/comments"))
+            mockMvc.perform(get("/tickets/" + dynamicTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(2)))
                     .andExpect(jsonPath("$[0].content", is("Primeiro comentário")))
@@ -156,9 +174,10 @@ public class TicketCommentIntegrationTest {
         @Test
         @DisplayName("POST /tickets/{id}/comments - Conteúdo vazio ou em branco deve retornar 400 Bad Request")
         void erro1_conteudoVazio_Retorna400() throws Exception {
-            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("   ", dynamicUserId);
+            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("   ");
 
             mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isBadRequest())
@@ -166,24 +185,25 @@ public class TicketCommentIntegrationTest {
         }
 
         @Test
-        @DisplayName("POST /tickets/{id}/comments - Autor (userId) nulo deve retornar 400 Bad Request")
-        void erro2_autorNulo_Retorna400() throws Exception {
-            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Conteúdo válido", null);
+        @DisplayName("POST /tickets/{id}/comments - Sem token de autorização deve retornar 401 Unauthorized")
+        void erro2_semToken_Retorna401() throws Exception {
+            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Conteúdo válido");
 
             mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.status", is(400)));
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.status", is(401)));
         }
 
         @Test
         @DisplayName("POST /tickets/{id}/comments - Ticket inexistente deve retornar 404 Not Found")
         void erro3_ticketInexistente_Retorna404() throws Exception {
             Long nonExistentTicketId = dynamicTicketId + 9999L;
-            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário para ticket inexistente", dynamicUserId);
+            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário para ticket inexistente");
 
             mockMvc.perform(post("/tickets/" + nonExistentTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isNotFound())
@@ -191,16 +211,26 @@ public class TicketCommentIntegrationTest {
         }
 
         @Test
-        @DisplayName("POST /tickets/{id}/comments - Autor (userId) inexistente deve retornar 404 Not Found")
-        void erro4_autorInexistente_Retorna404() throws Exception {
-            Long nonExistentUserId = dynamicUserId + 9999L;
-            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Comentário de autor inexistente", nonExistentUserId);
+        @DisplayName("POST /tickets/{id}/comments - Solicitante tentando comentar em chamado de outro usuário deve retornar 403 Forbidden")
+        void erro4_outroSolicitante_Retorna403() throws Exception {
+            User otherUser = userRepository.save(new User("Outro", "outro@helpdesk.com", passwordEncoder.encode("123"), UserRole.REQUESTER));
+            Ticket otherTicket = ticketRepository.save(new Ticket(
+                    "Outro Chamado",
+                    "Outra descricao",
+                    TicketCategory.DUVIDA,
+                    TicketPriority.BAIXA,
+                    otherUser,
+                    null
+            ));
 
-            mockMvc.perform(post("/tickets/" + dynamicTicketId + "/comments")
+            TicketCommentRequestDTO dto = new TicketCommentRequestDTO("Tentando bisbilhotar");
+
+            mockMvc.perform(post("/tickets/" + otherTicket.getId() + "/comments")
+                            .header("Authorization", "Bearer " + userToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.status", is(404)));
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status", is(403)));
         }
 
         @Test
@@ -208,7 +238,8 @@ public class TicketCommentIntegrationTest {
         void erro5_listarComentarios_TicketInexistente_Retorna404() throws Exception {
             Long nonExistentTicketId = dynamicTicketId + 9999L;
 
-            mockMvc.perform(get("/tickets/" + nonExistentTicketId + "/comments"))
+            mockMvc.perform(get("/tickets/" + nonExistentTicketId + "/comments")
+                            .header("Authorization", "Bearer " + userToken))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)));
         }

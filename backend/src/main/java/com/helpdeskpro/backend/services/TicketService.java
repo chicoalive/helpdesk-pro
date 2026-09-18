@@ -19,6 +19,8 @@ import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.AssetRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
+import com.helpdeskpro.backend.security.SecurityUtils;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,17 +32,19 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final AssetRepository assetRepository;
+    private final SecurityUtils securityUtils;
 
-    public TicketService(TicketRepository ticketRepository, UserRepository userRepository, AssetRepository assetRepository) {
+    public TicketService(TicketRepository ticketRepository, UserRepository userRepository,
+                         AssetRepository assetRepository, SecurityUtils securityUtils) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.assetRepository = assetRepository;
+        this.securityUtils = securityUtils;
     }
 
     @Transactional
     public TicketResponseDTO createTicket(TicketRequestDTO dto) {
-        User requester = userRepository.findById(dto.getRequesterId())
-                .orElseThrow(() -> new UserNotFoundException("Solicitante não encontrado com o id: " + dto.getRequesterId()));
+        User requester = securityUtils.getCurrentUser();
 
         if (requester.getRole() != UserRole.REQUESTER) {
             throw new BusinessRuleException("O solicitante deve ter o papel REQUESTER.");
@@ -81,8 +85,16 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public List<TicketResponseDTO> getAllTickets() {
-        return ticketRepository.findAll()
-                .stream()
+        User currentUser = securityUtils.getCurrentUser();
+        List<Ticket> tickets;
+
+        if (currentUser.getRole() == UserRole.REQUESTER) {
+            tickets = ticketRepository.findByRequesterId(currentUser.getId());
+        } else {
+            tickets = ticketRepository.findAll();
+        }
+
+        return tickets.stream()
                 .map(TicketResponseDTO::fromEntity)
                 .toList();
     }
@@ -91,14 +103,27 @@ public class TicketService {
     public TicketResponseDTO getTicketById(Long id) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + id));
+
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser.getRole() == UserRole.REQUESTER && !ticket.getRequester().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Você não possui permissão para visualizar este chamado.");
+        }
+
         return TicketResponseDTO.fromEntity(ticket);
     }
 
     @Transactional(readOnly = true)
     public List<TicketResponseDTO> getTicketsByRequester(Long requesterId) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.REQUESTER && !currentUser.getId().equals(requesterId)) {
+            throw new AccessDeniedException("Você não possui permissão para visualizar chamados de outro solicitante.");
+        }
+
         if (!userRepository.existsById(requesterId)) {
             throw new UserNotFoundException("Solicitante não encontrado com o id: " + requesterId);
         }
+
         return ticketRepository.findByRequesterId(requesterId)
                 .stream()
                 .map(TicketResponseDTO::fromEntity)
@@ -107,6 +132,11 @@ public class TicketService {
 
     @Transactional
     public TicketResponseDTO assignTechnician(Long ticketId, TicketAssignTechnicianDTO dto) {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser.getRole() == UserRole.REQUESTER) {
+            throw new AccessDeniedException("Solicitantes não possuem permissão para atribuir técnicos.");
+        }
+
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
 
@@ -134,6 +164,21 @@ public class TicketService {
     public TicketResponseDTO updateTicketStatus(Long ticketId, TicketStatusUpdateDTO dto) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
+
+        User currentUser = securityUtils.getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.REQUESTER) {
+            if (!ticket.getRequester().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("Você não possui permissão para alterar este chamado.");
+            }
+            if (dto.getStatus() != TicketStatus.CANCELADO) {
+                throw new AccessDeniedException("Solicitantes só possuem permissão para cancelar seus próprios chamados.");
+            }
+        } else if (currentUser.getRole() == UserRole.TECHNICIAN) {
+            if (ticket.getTechnician() == null || !ticket.getTechnician().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("Técnicos só podem alterar chamados atribuídos a si mesmos.");
+            }
+        }
 
         TicketStatus currentStatus = ticket.getStatus();
         TicketStatus newStatus = dto.getStatus();

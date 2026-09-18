@@ -15,19 +15,15 @@ public class TicketRequestDTO {
     @NotNull(message = "A categoria é obrigatória")
     private TicketCategory category;
 
-    @NotNull(message = "O ID do solicitante é obrigatório")
-    private Long requesterId;
-
     private Long assetId;
 
     public TicketRequestDTO() {
     }
 
-    public TicketRequestDTO(String title, String description, TicketCategory category, Long requesterId, Long assetId) {
+    public TicketRequestDTO(String title, String description, TicketCategory category, Long assetId) {
         this.title = title;
         this.description = description;
         this.category = category;
-        this.requesterId = requesterId;
         this.assetId = assetId;
     }
 
@@ -41,10 +37,6 @@ public class TicketRequestDTO {
 
     public TicketCategory getCategory() {
         return category;
-    }
-
-    public Long getRequesterId() {
-        return requesterId;
     }
 
     public Long getAssetId() {
@@ -61,10 +53,6 @@ public class TicketRequestDTO {
 
     public void setCategory(TicketCategory category) {
         this.category = category;
-    }
-
-    public void setRequesterId(Long requesterId) {
-        this.requesterId = requesterId;
     }
 
     public void setAssetId(Long assetId) {
