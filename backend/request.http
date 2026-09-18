@@ -210,3 +210,38 @@ Content-Type: application/json
 
 ### Erro 7: Buscar Chamado por ID Inexistente -> 404 Not Found
 GET http://localhost:8080/tickets/9999
+
+
+### =======================================================
+### COMENTARIOS / HISTORICO DE CHAMADOS (Etapa 5)
+### =======================================================
+
+### 1. Adicionar Comentario ao Chamado -> 201 Created
+POST http://localhost:8080/tickets/1/comments
+Content-Type: application/json
+
+{
+  "content": "Verificamos que o serviço já foi restabelecido e estamos aguardando a confirmação do usuário.",
+  "userId": 2
+}
+
+### 2. Listar Historico de Comentarios do Chamado -> 200 OK
+GET http://localhost:8080/tickets/1/comments
+
+### 3. Erro: Adicionar Comentario com Conteudo Vazio -> 400 Bad Request
+POST http://localhost:8080/tickets/1/comments
+Content-Type: application/json
+
+{
+  "content": "   ",
+  "userId": 2
+}
+
+### 4. Erro: Adicionar Comentario para Chamado Inexistente -> 404 Not Found
+POST http://localhost:8080/tickets/9999/comments
+Content-Type: application/json
+
+{
+  "content": "Tentativa de comentar em chamado inexistente",
+  "userId": 1
+}
