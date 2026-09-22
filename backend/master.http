@@ -1,0 +1,197 @@
+### =======================================================
+### MASTER FLOW — ETAPA 7
+### =======================================================
+### Fluxo ponta a ponta completo:
+### 1. Login do Administrador
+### 2. Criação do Solicitante (captura {{requesterId}} e {{requesterEmail}})
+### 3. Criação do Técnico (captura {{technicianId}} e {{technicianEmail}})
+### 4. Criação do Ativo em uso (captura {{assetId}})
+### 5. Login do Solicitante (captura {{requesterToken}})
+### 6. Abertura do Chamado com ativo vinculado (status inicial: CRIADO, captura {{ticketId}})
+### 7. Login do Técnico (captura {{techToken}})
+### 8. Atribuição do Técnico com {{technicianId}} (transita automaticamente para ABERTO)
+### 9. Adição de Comentário ao Chamado
+### 10. Transição de Status: ABERTO -> EM_ATENDIMENTO
+### 11. Transição de Status: EM_ATENDIMENTO -> RESOLVIDO (com solution obrigatória)
+### 12. Transição de Status: RESOLVIDO -> FECHADO
+### 13. Confirmação Final do Fechamento do Chamado (GET /tickets/{{ticketId}})
+
+### 1. Master Flow - Login como Administrador -> 200 OK
+# @name masterLoginAdmin
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@helpdesk.com",
+  "password": "123"
+}
+
+> {%
+    client.global.set("adminToken", response.body.token);
+%}
+
+
+### 2. Master Flow - Criar Solicitante (Admin Only) -> 200 OK
+# @name masterCreateRequester
+POST http://localhost:8080/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Solicitante Master Flow",
+  "email": "solicitante.flow{{$timestamp}}@helpdesk.com",
+  "password": "123",
+  "role": "REQUESTER"
+}
+
+> {%
+    client.global.set("requesterId", response.body.id);
+    client.global.set("requesterEmail", response.body.email);
+%}
+
+
+### 3. Master Flow - Criar Técnico (Admin Only) -> 200 OK
+# @name masterCreateTechnician
+POST http://localhost:8080/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Técnico Master Flow",
+  "email": "tecnico.flow{{$timestamp}}@helpdesk.com",
+  "password": "123",
+  "role": "TECHNICIAN"
+}
+
+> {%
+    client.global.set("technicianId", response.body.id);
+    client.global.set("technicianEmail", response.body.email);
+%}
+
+
+### 4. Master Flow - Criar Ativo Em Uso (Admin Only) -> 201 Created
+# @name masterCreateAsset
+POST http://localhost:8080/assets
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "code": "FLOW-{{$timestamp}}",
+  "type": "Notebook",
+  "description": "Dell Latitude 5420 - Master Flow",
+  "status": "IN_USE"
+}
+
+> {%
+    client.global.set("assetId", response.body.id);
+%}
+
+
+### 5. Master Flow - Login como Solicitante -> 200 OK
+# @name masterLoginRequester
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{requesterEmail}}",
+  "password": "123"
+}
+
+> {%
+    client.global.set("requesterToken", response.body.token);
+%}
+
+
+### 6. Master Flow - Abrir Chamado com Ativo Vinculado (Status: CRIADO) -> 201 Created
+# @name masterCreateTicket
+POST http://localhost:8080/tickets
+Authorization: Bearer {{requesterToken}}
+Content-Type: application/json
+
+{
+  "title": "Falha na inicialização do sistema operacional",
+  "description": "Notebook desliga sozinho durante a inicialização do sistema.",
+  "category": "INCIDENTE_EQUIPAMENTO",
+  "assetId": {{assetId}}
+}
+
+> {%
+    client.global.set("ticketId", response.body.id);
+%}
+
+
+### 7. Master Flow - Login como Técnico -> 200 OK
+# @name masterLoginTech
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{technicianEmail}}",
+  "password": "123"
+}
+
+> {%
+    client.global.set("techToken", response.body.token);
+%}
+
+
+### 8. Master Flow - Atribuir Técnico ao Chamado (Transita para ABERTO) -> 200 OK
+# @name masterAssignTechnician
+PATCH http://localhost:8080/tickets/{{ticketId}}/technician
+Authorization: Bearer {{techToken}}
+Content-Type: application/json
+
+{
+  "technicianId": {{technicianId}}
+}
+
+
+### 9. Master Flow - Adicionar Comentário ao Chamado -> 201 Created
+# @name masterAddComment
+POST http://localhost:8080/tickets/{{ticketId}}/comments
+Authorization: Bearer {{techToken}}
+Content-Type: application/json
+
+{
+  "content": "Equipamento recebido no laboratório. Iniciando diagnóstico técnico de hardware."
+}
+
+
+### 10. Master Flow - Transitar Status para EM_ATENDIMENTO -> 200 OK
+# @name masterStatusEmAtendimento
+PATCH http://localhost:8080/tickets/{{ticketId}}/status
+Authorization: Bearer {{techToken}}
+Content-Type: application/json
+
+{
+  "status": "EM_ATENDIMENTO"
+}
+
+
+### 11. Master Flow - Transitar Status para RESOLVIDO (Solution Obrigatória) -> 200 OK
+# @name masterStatusResolvido
+PATCH http://localhost:8080/tickets/{{ticketId}}/status
+Authorization: Bearer {{techToken}}
+Content-Type: application/json
+
+{
+  "status": "RESOLVIDO",
+  "solution": "Substituição do módulo NVMe defeituoso e reinstalação da imagem corporativa homologada."
+}
+
+
+### 12. Master Flow - Transitar Status de RESOLVIDO para FECHADO -> 200 OK
+# @name masterStatusFechado
+PATCH http://localhost:8080/tickets/{{ticketId}}/status
+Authorization: Bearer {{techToken}}
+Content-Type: application/json
+
+{
+  "status": "FECHADO"
+}
+
+
+### 13. Master Flow - Confirmar Fechamento Final do Chamado -> 200 OK
+# @name masterGetFinalTicket
+GET http://localhost:8080/tickets/{{ticketId}}
+Authorization: Bearer {{techToken}}

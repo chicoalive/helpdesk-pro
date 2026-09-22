@@ -29,7 +29,7 @@ public class TicketController {
     }
 
     @PostMapping
-    public ResponseEntity<TicketResponseDTO> createTicket(@RequestBody @Valid TicketRequestDTO dto) {
+    public ResponseEntity<TicketResponseDTO> createTicket(@Valid @RequestBody TicketRequestDTO dto) {
         TicketResponseDTO created = ticketService.createTicket(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -55,7 +55,7 @@ public class TicketController {
     @PatchMapping("/{id}/technician")
     public ResponseEntity<TicketResponseDTO> assignTechnician(
             @PathVariable Long id,
-            @RequestBody @Valid TicketAssignTechnicianDTO dto) {
+            @Valid @RequestBody TicketAssignTechnicianDTO dto) {
         TicketResponseDTO updated = ticketService.assignTechnician(id, dto);
         return ResponseEntity.ok(updated);
     }
@@ -63,7 +63,7 @@ public class TicketController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<TicketResponseDTO> updateTicketStatus(
             @PathVariable Long id,
-            @RequestBody @Valid TicketStatusUpdateDTO dto) {
+            @Valid @RequestBody TicketStatusUpdateDTO dto) {
         TicketResponseDTO updated = ticketService.updateTicketStatus(id, dto);
         return ResponseEntity.ok(updated);
     }

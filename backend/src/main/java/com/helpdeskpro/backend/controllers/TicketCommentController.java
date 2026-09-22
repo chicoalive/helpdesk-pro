@@ -28,7 +28,7 @@ public class TicketCommentController {
     @PostMapping
     public ResponseEntity<TicketCommentResponseDTO> createComment(
             @PathVariable Long ticketId,
-            @RequestBody @Valid TicketCommentRequestDTO dto) {
+            @Valid @RequestBody TicketCommentRequestDTO dto) {
         TicketCommentResponseDTO created = ticketCommentService.createComment(ticketId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }

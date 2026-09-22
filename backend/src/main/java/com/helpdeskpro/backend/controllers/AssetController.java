@@ -30,7 +30,7 @@ public class AssetController {
     }
 
     @PostMapping
-    public ResponseEntity<AssetResponseDTO> createAsset(@RequestBody @Valid AssetRequestDTO dto) {
+    public ResponseEntity<AssetResponseDTO> createAsset(@Valid @RequestBody AssetRequestDTO dto) {
         AssetResponseDTO created = assetService.createAsset(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -50,7 +50,7 @@ public class AssetController {
     @PutMapping("/{id}")
     public ResponseEntity<AssetResponseDTO> updateAsset(
             @PathVariable Long id,
-            @RequestBody @Valid AssetRequestDTO dto) {
+            @Valid @RequestBody AssetRequestDTO dto) {
         AssetResponseDTO updated = assetService.updateAsset(id, dto);
         return ResponseEntity.ok(updated);
     }
@@ -58,7 +58,7 @@ public class AssetController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<AssetResponseDTO> updateAssetStatus(
             @PathVariable Long id,
-            @RequestBody @Valid AssetStatusUpdateDTO dto) {
+            @Valid @RequestBody AssetStatusUpdateDTO dto) {
         AssetResponseDTO updated = assetService.updateAssetStatus(id, dto);
         return ResponseEntity.ok(updated);
     }
