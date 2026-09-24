@@ -1,0 +1,218 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* ============================================================
+   FUNDO EM TELA CHEIA (Foto com camada escura neutra e sutil)
+   ============================================================ */
+.login-wrapper {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background-image:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.28) 0%, rgba(15, 23, 42, 0.45) 100%),
+    url('/images/login-background.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* ============================================================
+   CARTÃO COMPACTO (360–380 px) COM VIDRO FOSCO TRANSLÚCIDO (68%)
+   ============================================================ */
+.login-card {
+  width: 100%;
+  max-width: calc(250px + 3.5rem);
+  height: auto;
+  background-color: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.22), 0 4px 10px rgba(0, 0, 0, 0.08);
+  padding: 1.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 1.15rem;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.brand-logo-icon {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #0078d4;
+  letter-spacing: -0.025em;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
+   FORMULÁRIO REATIVO E CAMPOS CENTRALIZADOS E COMPACTOS
+   ============================================================ */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+}
+
+.form-group {
+  width: 100%;
+  max-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.9rem;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.375rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+}
+
+.form-input:focus {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.18);
+}
+
+.form-input.input-error {
+  border-color: #dc2626;
+  background-color: #fffbfb;
+}
+
+.form-input.input-error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+
+.error-message {
+  font-size: 0.8rem;
+  color: #b91c1c;
+  font-weight: 600;
+  margin-top: 0.1rem;
+}
+
+/* Botão azul vivo com cantos discretamente arredondados e sombra leve */
+.btn-submit {
+  margin-top: 0.25rem;
+  width: 100%;
+  max-width: 250px;
+  padding: 0.72rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #0078d4;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 120, 212, 0.25);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: #0067b8;
+  box-shadow: 0 4px 10px rgba(0, 120, 212, 0.32);
+}
+
+.btn-submit:active:not(:disabled) {
+  background-color: #005a9e;
+  transform: translateY(1px);
+}
+
+.btn-submit:disabled {
+  background-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.auth-error-message {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b91c1c;
+  background-color: rgba(254, 242, 242, 0.95);
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  text-align: center;
+  width: 100%;
+  max-width: 250px;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   RESPONSIVIDADE (Telas menores / Dispositivos móveis)
+   ============================================================ */
+@media (max-width: 480px) {
+  .login-wrapper {
+    padding: 1rem 0.75rem;
+    background-attachment: scroll;
+  }
+
+  .login-card {
+    padding: 1.25rem;
+    max-width: calc(250px + 2.5rem);
+    border-radius: 0.5rem;
+  }
+
+  .brand-name {
+    font-size: 1.3rem;
+  }
+
+  .card-title {
+    font-size: 1.15rem;
+  }
+}

@@ -1,0 +1,82 @@
+<div class="login-wrapper">
+  <!-- Cartão Centralizado Compacto e Corporativo -->
+  <main class="login-card">
+    <header class="card-header">
+      <div class="brand-badge">
+        <svg class="brand-logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- Arco do headset (Suporte de TI) -->
+          <path d="M6 18C6 11.373 11.373 6 18 6C24.627 6 30 11.373 30 18" stroke="#0078d4" stroke-width="2.5" stroke-linecap="round"/>
+          <rect x="4" y="16" width="4" height="8" rx="2" fill="#0078d4"/>
+          <rect x="28" y="16" width="4" height="8" rx="2" fill="#0078d4"/>
+          <!-- Microfone -->
+          <path d="M30 20C30 25.5 25 28 20 28" stroke="#0078d4" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="19" cy="28" r="1.5" fill="#0078d4"/>
+          <!-- Cartão de chamado / ticket -->
+          <rect x="11" y="11" width="14" height="12" rx="2.5" stroke="#0078d4" stroke-width="1.8" fill="rgba(0,120,212,0.08)"/>
+          <path d="M14 15H22M14 18H19" stroke="#0078d4" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">HelpDeskPro</span>
+      </div>
+
+      <h1 class="card-title">Bem-vindo</h1>
+    </header>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" novalidate>
+      <div class="form-group">
+        <label for="email" class="form-label">E-mail</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="form-input"
+          [class.input-error]="email?.invalid && (email?.dirty || email?.touched)"
+          placeholder="seu.email@empresa.com"
+          autocomplete="email"
+        />
+        @if (email?.invalid && (email?.dirty || email?.touched)) {
+          <div class="error-message" role="alert">
+            @if (email?.hasError('required')) {
+              <span>O e-mail é obrigatório.</span>
+            } @else if (email?.hasError('email')) {
+              <span>Informe um e-mail válido.</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Senha</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="form-input"
+          [class.input-error]="password?.invalid && (password?.dirty || password?.touched)"
+          placeholder="Digite sua senha"
+          autocomplete="current-password"
+        />
+        @if (password?.invalid && (password?.dirty || password?.touched)) {
+          <div class="error-message" role="alert">
+            @if (password?.hasError('required')) {
+              <span>A senha é obrigatória.</span>
+            }
+          </div>
+        }
+      </div>
+
+      <button
+        type="submit"
+        class="btn-submit"
+        [disabled]="loginForm.invalid || isLoading"
+      >
+        {{ isLoading ? 'Entrando...' : 'Entrar' }}
+      </button>
+
+      @if (errorMessage) {
+        <div class="auth-error-message" role="alert">
+          <span>{{ errorMessage }}</span>
+        </div>
+      }
+    </form>
+  </main>
+</div>
