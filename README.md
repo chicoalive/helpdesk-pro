@@ -75,15 +75,35 @@ O HelpDesk Pro está sendo desenvolvido como projeto de portfólio para demonstr
 - Redirecionamento para `/home` após autenticação
 - Build e testes do frontend executados com sucesso
 
+**Etapa 9 — Telas de ativos e chamados**
+- Listagem de chamados com filtros por pesquisa, status e prioridade
+- Tela de detalhes do chamado com histórico de comentários
+- Listagem, cadastro e edição de ativos
+- Formulários reativos com validação
+- Controle de acesso por perfil:
+  - REQUESTER acessa apenas seus chamados e não consulta ativos
+  - TECHNICIAN pode consultar ativos
+  - ADMIN pode cadastrar e editar ativos
+- Guards de rota no frontend
+- Navegação global com links conforme o perfil
+- Identificação do usuário e perfil autenticado
+- Logout com remoção do JWT e redirecionamento para `/login`
+- 82 testes do frontend aprovados
+- Build do frontend concluído com sucesso
+
 ## Próximas etapas
 
-- Criar telas de listagem e detalhes de chamados
-- Criar telas de cadastro e edição de ativos
-- Implementar o dashboard com indicadores
+- Implementar a Etapa 10 — Dashboard e Indicadores
+- Criar indicadores de chamados por status
+- Criar indicadores de chamados por prioridade
+- Criar indicadores de chamados por técnico
+- Criar indicador de ativos em manutenção
 
 ## Status
 
-O backend da API foi implementado e validado para o escopo atual. O frontend está em desenvolvimento; o login já está integrado, e a tela `/home` ainda é provisória.
+As Etapas 1 a 9 estão concluídas e validadas. O backend e o frontend estão integrados, com autenticação JWT, controle de acesso por perfil, gestão de chamados e ativos e navegação pela interface Angular.
+
+A próxima etapa é a implementação do dashboard com indicadores baseados nos dados reais da API.
 
 ## Como executar localmente
 
@@ -102,37 +122,3 @@ O backend da API foi implementado e validado para o escopo atual. O frontend est
 
    ```bash
    ./gradlew bootRun
-   ```
-
-O backend será iniciado na porta `8080`.
-
-### Frontend
-
-1. Em outro terminal, acesse a pasta `frontend`.
-2. Instale as dependências:
-
-   ```bash
-   npm install
-   ```
-
-3. Inicie o servidor de desenvolvimento:
-
-   ```bash
-   npm start
-   ```
-
-O frontend será disponibilizado em `http://localhost:4200`. Durante o desenvolvimento, o proxy Angular encaminha as chamadas da API para o backend local.
-
-### Testes
-
-Na pasta `backend`, execute:
-
-```bash
-./gradlew test
-```
-
-Na pasta `frontend`, execute:
-
-```bash
-npx ng test --watch=false
-```
