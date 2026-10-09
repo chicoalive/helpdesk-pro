@@ -1,1 +1,82 @@
-<p>home works!</p>
+<div class="home-container">
+  <header class="home-header">
+    <h1>Chamados</h1>
+    @if (canViewAssets) {
+      <a routerLink="/assets" class="btn-assets">Ativos de TI</a>
+    }
+  </header>
+
+  @if (errorMessage) {
+    <div class="alert alert-error">{{ errorMessage }}</div>
+  }
+
+  @if (isLoading) {
+    <div class="alert alert-info">Carregando chamados...</div>
+  }
+
+  <section class="filters-bar">
+    <div class="filter-group search-group">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Pesquisar por ID ou título..."
+        class="form-control"
+      />
+    </div>
+
+    <div class="filter-group">
+      <select [(ngModel)]="statusFilter" class="form-control">
+        <option value="">Todos os status</option>
+        <option value="CRIADO">CRIADO</option>
+        <option value="ABERTO">ABERTO</option>
+        <option value="EM_ATENDIMENTO">EM_ATENDIMENTO</option>
+        <option value="AGUARDANDO_USUARIO">AGUARDANDO_USUARIO</option>
+        <option value="RESOLVIDO">RESOLVIDO</option>
+        <option value="FECHADO">FECHADO</option>
+        <option value="CANCELADO">CANCELADO</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <select [(ngModel)]="priorityFilter" class="form-control">
+        <option value="">Todas as prioridades</option>
+        <option value="BAIXA">BAIXA</option>
+        <option value="MEDIA">MEDIA</option>
+        <option value="ALTA">ALTA</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="table-container">
+    <table class="tickets-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Título</th>
+          <th>Categoria</th>
+          <th>Prioridade</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (ticket of filteredTickets; track ticket.id) {
+          <tr>
+            <td class="col-id">#{{ ticket.id }}</td>
+            <td class="col-title">{{ ticket.title }}</td>
+            <td>{{ ticket.category }}</td>
+            <td>{{ ticket.priority }}</td>
+            <td>{{ ticket.status }}</td>
+            <td class="col-actions">
+              <a [routerLink]="['/tickets', ticket.id]" class="btn-details">Detalhes</a>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="empty-state">Nenhum chamado encontrado</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

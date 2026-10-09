@@ -109,9 +109,9 @@ Content-Type: application/json
   "status": "INACTIVE"
 }
 
-### 3. Listar Ativos (Qualquer usuário logado) -> 200 OK
+### 3. Listar Ativos (Apenas TECHNICIAN e ADMIN) -> 200 OK
 GET http://localhost:8080/assets
-Authorization: Bearer {{requesterToken}}
+Authorization: Bearer {{techToken}}
 
 
 ### =======================================================
@@ -244,6 +244,10 @@ Content-Type: application/json
 
 ### Erro 2: Requisição sem token em endpoint protegido -> 401 Unauthorized
 GET http://localhost:8080/assets
+
+### Erro 2.1: Requester tentando listar ativos (Apenas ADMIN e TECHNICIAN) -> 403 Forbidden
+GET http://localhost:8080/assets
+Authorization: Bearer {{requesterToken}}
 
 ### Erro 3: Requester tentando criar ativo (Apenas ADMIN) -> 403 Forbidden
 POST http://localhost:8080/assets

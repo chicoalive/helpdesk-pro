@@ -1,0 +1,49 @@
+:host { display: block; min-height: 100vh; background-color: #f8fafc; color: #1e293b; }
+.ticket-detail-container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+.header-navigation { margin-bottom: 1.5rem; }
+.btn-back { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 600; color: #0078d4; text-decoration: none; }
+.btn-back:hover { color: #106ebe; text-decoration: underline; }
+.alert { padding: 0.85rem 1.15rem; border-radius: 0.5rem; margin-bottom: 1.25rem; font-size: 0.9rem; font-weight: 500; }
+.alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+.alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+.detail-card, .comments-card { background: #fff; border-radius: 0.5rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 1.75rem; margin-bottom: 1.75rem; }
+.ticket-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
+.ticket-title-wrapper { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+.ticket-id { font-size: 1.25rem; font-weight: 700; color: #0078d4; }
+.ticket-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0; }
+.status-badge { display: inline-block; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; white-space: nowrap; }
+[data-status="EM_ATENDIMENTO"] { background: #fefce8; color: #a16207; border-color: #fef08a; }
+[data-status="RESOLVIDO"], [data-status="FECHADO"] { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+[data-status="CANCELADO"] { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem; }
+.info-item { display: flex; flex-direction: column; gap: 0.25rem; }
+.info-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #64748b; }
+.info-value { font-size: 0.95rem; font-weight: 500; color: #0f172a; }
+.priority-value { font-weight: 600; }
+[data-priority="ALTA"] { color: #dc2626; }
+[data-priority="MEDIA"] { color: #d97706; }
+[data-priority="BAIXA"] { color: #16a34a; }
+.sub-value { color: #64748b; font-size: 0.85rem; }
+.text-muted { color: #94a3b8; font-style: italic; }
+.section-block { border-top: 1px solid #f1f5f9; padding-top: 1.25rem; margin-top: 1.25rem; }
+.section-title { font-size: 1.05rem; font-weight: 600; color: #0f172a; margin: 0 0 0.5rem; }
+.description-text { font-size: 0.95rem; line-height: 1.6; margin: 0; white-space: pre-wrap; color: #334155; }
+.solution-block { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.375rem; padding: 1rem 1.25rem; }
+.solution-text { font-size: 0.95rem; line-height: 1.5; margin: 0; white-space: pre-wrap; color: #166534; }
+.comments-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.85rem; margin-bottom: 1.25rem; }
+.comments-count { font-size: 0.85rem; color: #64748b; }
+.comments-list { display: flex; flex-direction: column; gap: 1rem; }
+.comment-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.375rem; padding: 1rem 1.15rem; }
+.comment-meta { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.comment-author { font-size: 0.9rem; font-weight: 600; color: #0f172a; }
+.role-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; background: #f1f5f9; color: #475569; }
+[data-role="ADMIN"] { background: #fef3c7; color: #92400e; }
+[data-role="TECHNICIAN"] { background: #e0f2fe; color: #0369a1; }
+.comment-date { font-size: 0.8rem; color: #64748b; margin-left: auto; }
+.comment-body { font-size: 0.925rem; line-height: 1.55; color: #334155; margin: 0; white-space: pre-wrap; }
+.empty-comments { text-align: center; padding: 2rem 1rem; color: #64748b; font-style: italic; margin: 0; }
+@media (max-width: 640px) {
+  .ticket-detail-container { padding: 1.25rem 1rem; }
+  .ticket-header { flex-direction: column; }
+  .comment-date { margin-left: 0; width: 100%; }
+}

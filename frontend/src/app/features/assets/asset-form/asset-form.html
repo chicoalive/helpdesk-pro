@@ -1,0 +1,92 @@
+<div class="asset-form-container">
+  <div class="header-navigation">
+    <a routerLink="/assets" class="btn-back">&larr; Voltar para Ativos</a>
+  </div>
+
+  <div class="form-card">
+    <header class="card-header">
+      <h1 class="card-title">{{ isEditMode ? 'Editar Ativo' : 'Novo Ativo' }}</h1>
+      <p class="card-subtitle">
+        {{ isEditMode ? 'Atualize as informações do ativo de TI.' : 'Preencha os campos abaixo para cadastrar um novo ativo de TI.' }}
+      </p>
+    </header>
+
+    @if (errorMessage) {
+      <div class="alert alert-error">{{ errorMessage }}</div>
+    }
+
+    @if (isLoading) {
+      <div class="alert alert-info">Carregando dados do ativo...</div>
+    }
+
+    @if (!isLoading && isAdmin) {
+      <form [formGroup]="assetForm" (ngSubmit)="onSubmit()" class="asset-form">
+        <div class="form-group">
+          <label for="code" class="form-label">Código do Ativo *</label>
+          <input
+            id="code"
+            type="text"
+            formControlName="code"
+            placeholder="Ex: NOTE-100"
+            class="form-input"
+            [class.input-error]="code?.invalid && code?.touched"
+          />
+          @if (code?.invalid && code?.touched) {
+            <span class="error-message">O código do ativo é obrigatório.</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="type" class="form-label">Tipo do Ativo *</label>
+          <input
+            id="type"
+            type="text"
+            formControlName="type"
+            placeholder="Ex: Notebook, Monitor, Servidor"
+            class="form-input"
+            [class.input-error]="type?.invalid && type?.touched"
+          />
+          @if (type?.invalid && type?.touched) {
+            <span class="error-message">O tipo do ativo é obrigatório.</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="status" class="form-label">Status *</label>
+          <select
+            id="status"
+            formControlName="status"
+            class="form-input select-input"
+            [class.input-error]="status?.invalid && status?.touched"
+          >
+            <option value="IN_USE">Em Uso (IN_USE)</option>
+            <option value="INACTIVE">Inativo (INACTIVE)</option>
+            <option value="UNDER_MAINTENANCE">Em Manutenção (UNDER_MAINTENANCE)</option>
+            <option value="DISCARDED">Descartado (DISCARDED)</option>
+          </select>
+          @if (status?.invalid && status?.touched) {
+            <span class="error-message">O status do ativo é obrigatório.</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="description" class="form-label">Descrição (Opcional)</label>
+          <textarea
+            id="description"
+            formControlName="description"
+            placeholder="Ex: Fabricante, modelo, especificações ou observações adicionais"
+            rows="4"
+            class="form-input textarea-input"
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" [disabled]="isSaving" class="btn-submit">
+            {{ isSaving ? 'Salvando...' : (isEditMode ? 'Salvar Alterações' : 'Cadastrar Ativo') }}
+          </button>
+          <a routerLink="/assets" class="btn-cancel">Cancelar</a>
+        </div>
+      </form>
+    }
+  </div>
+</div>

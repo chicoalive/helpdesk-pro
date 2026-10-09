@@ -1,0 +1,33 @@
+<header class="navbar">
+  <div class="navbar-container">
+    <div class="navbar-left">
+      <a routerLink="/home" class="navbar-brand">
+        <span class="brand-text">HelpDesk<span class="brand-accent">Pro</span></span>
+      </a>
+
+      <nav class="navbar-nav">
+        <a routerLink="/home" routerLinkActive="active" class="nav-link">
+          Chamados
+        </a>
+        @if (canViewAssets) {
+          <a routerLink="/assets" routerLinkActive="active" class="nav-link">
+            Ativos de TI
+          </a>
+        }
+      </nav>
+    </div>
+
+    <div class="navbar-right">
+      <div class="user-info">
+        <span class="user-identity" [title]="identity">{{ identity }}</span>
+        @if (roleLabel) {
+          <span class="role-badge" [attr.data-role]="userRole">{{ roleLabel }}</span>
+        }
+      </div>
+
+      <button type="button" class="btn-logout" (click)="onLogout()">
+        Sair
+      </button>
+    </div>
+  </div>
+</header>

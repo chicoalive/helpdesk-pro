@@ -1,0 +1,79 @@
+<div class="asset-list-container">
+  <header class="page-header">
+    <div class="header-titles">
+      <a routerLink="/home" class="btn-nav-link">&larr; Voltar para Chamados</a>
+      <h1 class="page-title">Ativos de TI</h1>
+    </div>
+    <div class="header-actions">
+      @if (isAdmin) {
+        <a routerLink="/assets/new" class="btn-primary">Novo Ativo</a>
+      }
+    </div>
+  </header>
+
+  @if (errorMessage) {
+    <div class="alert alert-error">{{ errorMessage }}</div>
+  }
+
+  @if (isLoading) {
+    <div class="alert alert-info">Carregando ativos...</div>
+  }
+
+  <section class="filters-bar">
+    <div class="filter-group search-group">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Pesquisar por código, tipo ou descrição..."
+        class="form-control"
+      />
+    </div>
+
+    <div class="filter-group">
+      <select [(ngModel)]="statusFilter" class="form-control">
+        <option value="">Todos os status</option>
+        <option value="IN_USE">Em Uso (IN_USE)</option>
+        <option value="INACTIVE">Inativo (INACTIVE)</option>
+        <option value="UNDER_MAINTENANCE">Em Manutenção (UNDER_MAINTENANCE)</option>
+        <option value="DISCARDED">Descartado (DISCARDED)</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="table-container">
+    <table class="assets-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Tipo</th>
+          <th>Status</th>
+          <th class="th-actions">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (asset of filteredAssets; track asset.id) {
+          <tr>
+            <td class="col-code">{{ asset.code }}</td>
+            <td class="col-type">{{ asset.type }}</td>
+            <td>
+              <span class="status-badge" [attr.data-status]="asset.status">
+                {{ getStatusLabel(asset.status) }}
+              </span>
+            </td>
+            <td class="col-actions">
+              @if (isAdmin) {
+                <a [routerLink]="['/assets', asset.id, 'edit']" class="btn-edit">Editar</a>
+              } @else {
+                <span class="text-muted">-</span>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty-state">Nenhum ativo encontrado</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

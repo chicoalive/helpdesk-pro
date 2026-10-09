@@ -1,0 +1,135 @@
+<div class="ticket-detail-container">
+  <div class="header-navigation">
+    <a routerLink="/home" class="btn-back">
+      <span class="back-arrow">&larr;</span> Voltar para a listagem
+    </a>
+  </div>
+
+  @if (errorMessage) {
+    <div class="alert alert-error">{{ errorMessage }}</div>
+  }
+
+  @if (isLoadingTicket) {
+    <div class="alert alert-info">Carregando detalhes do chamado...</div>
+  }
+
+  @if (ticket) {
+    <article class="detail-card">
+      <header class="ticket-header">
+        <div class="ticket-title-wrapper">
+          <span class="ticket-id">#{{ ticket.id }}</span>
+          <h1 class="ticket-title">{{ ticket.title }}</h1>
+        </div>
+        <span class="status-badge" [attr.data-status]="ticket.status">
+          {{ ticket.status }}
+        </span>
+      </header>
+
+      <section class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Categoria</span>
+          <span class="info-value">{{ ticket.category }}</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Prioridade</span>
+          <span class="info-value priority-value" [attr.data-priority]="ticket.priority">
+            {{ ticket.priority }}
+          </span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Solicitante</span>
+          <span class="info-value">
+            {{ ticket.requesterName }}
+            <span class="sub-value">({{ ticket.requesterEmail }})</span>
+          </span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Técnico Atribuído</span>
+          <span class="info-value">
+            @if (ticket.technicianName) {
+              {{ ticket.technicianName }}
+              <span class="sub-value">({{ ticket.technicianEmail }})</span>
+            } @else {
+              <span class="text-muted">Não atribuído</span>
+            }
+          </span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Ativo Vinculado</span>
+          <span class="info-value">
+            @if (ticket.assetCode) {
+              {{ ticket.assetCode }}
+              @if (ticket.assetType) {
+                <span class="sub-value">({{ ticket.assetType }})</span>
+              }
+            } @else {
+              <span class="text-muted">Nenhum ativo vinculado</span>
+            }
+          </span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Criado em</span>
+          <span class="info-value">{{ formatDate(ticket.createdAt) }}</span>
+        </div>
+
+        @if (ticket.updatedAt) {
+          <div class="info-item">
+            <span class="info-label">Atualizado em</span>
+            <span class="info-value">{{ formatDate(ticket.updatedAt) }}</span>
+          </div>
+        }
+      </section>
+
+      <section class="section-block">
+        <h2 class="section-title">Descrição</h2>
+        <p class="description-text">{{ ticket.description }}</p>
+      </section>
+
+      @if (ticket.solution) {
+        <section class="section-block solution-block">
+          <h2 class="section-title">Solução Técnica</h2>
+          <p class="solution-text">{{ ticket.solution }}</p>
+        </section>
+      }
+    </article>
+
+    <section class="comments-card">
+      <header class="comments-header">
+        <h2 class="section-title">Histórico de Comentários</h2>
+        <span class="comments-count">{{ comments.length }} comentário(s)</span>
+      </header>
+
+      @if (commentsErrorMessage) {
+        <div class="alert alert-error">{{ commentsErrorMessage }}</div>
+      }
+
+      @if (isLoadingComments) {
+        <div class="alert alert-info">Carregando comentários...</div>
+      }
+
+      <div class="comments-list">
+        @for (comment of comments; track comment.id) {
+          <article class="comment-item">
+            <header class="comment-meta">
+              <span class="comment-author">{{ comment.authorName ?? 'Usuário' }}</span>
+              <span class="role-badge" [attr.data-role]="comment.authorRole">
+                {{ getRoleLabel(comment.authorRole) }}
+              </span>
+              <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+            </header>
+            <p class="comment-body">{{ comment.content }}</p>
+          </article>
+        } @empty {
+          @if (!isLoadingComments && !commentsErrorMessage) {
+            <p class="empty-comments">Nenhum comentário registrado.</p>
+          }
+        }
+      </div>
+    </section>
+  }
+</div>

@@ -178,12 +178,23 @@ class SecurityIntegrationTest {
     }
 
     @Test
-    @DisplayName("Usuário autenticado (REQUESTER) pode ler ativos (GET /assets) -> 200 OK")
-    void requesterReadingAssets_Returns200() throws Exception {
+    @DisplayName("REQUESTER tentando ler ativos (GET /assets) deve retornar 403 Forbidden")
+    void requesterReadingAssets_Returns403() throws Exception {
         assetRepository.save(new Asset("NOTE-001", "Notebook", "Dell", AssetStatus.IN_USE));
 
         mockMvc.perform(get("/assets")
                         .header("Authorization", "Bearer " + req1Token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)));
+    }
+
+    @Test
+    @DisplayName("TECHNICIAN lendo ativos (GET /assets) retorna 200 OK")
+    void technicianReadingAssets_Returns200() throws Exception {
+        assetRepository.save(new Asset("NOTE-002", "Notebook", "Dell", AssetStatus.IN_USE));
+
+        mockMvc.perform(get("/assets")
+                        .header("Authorization", "Bearer " + tech1Token))
                 .andExpect(status().isOk());
     }
 
