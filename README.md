@@ -91,19 +91,39 @@ O HelpDesk Pro está sendo desenvolvido como projeto de portfólio para demonstr
 - 82 testes do frontend aprovados
 - Build do frontend concluído com sucesso
 
+**Etapa 10 — Dashboard e Indicadores**
+- Endpoint `GET /dashboard/summary` criado no backend
+- Indicadores de chamados por status
+- Indicadores de chamados por prioridade
+- Indicadores de chamados por técnico
+- Contagem de chamados sem técnico atribuído
+- Indicador de ativos em manutenção
+- Dashboard integrado ao topo da rota `/home` com dados reais da API
+- Acesso ao dashboard restrito a ADMIN e TECHNICIAN
+- REQUESTER não visualiza o dashboard nem realiza chamada ao endpoint
+- Estados de carregamento, erro e dados zerados tratados no frontend
+- 122 testes do backend aprovados
+- 93 testes do frontend aprovados
+- Build do frontend concluído com sucesso
+- Validação manual realizada com ADMIN, TECHNICIAN e REQUESTER
+
 ## Próximas etapas
 
-- Implementar a Etapa 10 — Dashboard e Indicadores
-- Criar indicadores de chamados por status
-- Criar indicadores de chamados por prioridade
-- Criar indicadores de chamados por técnico
-- Criar indicador de ativos em manutenção
+- Iniciar a Etapa 11 — Diferenciais Técnicos
+- Selecionar dois ou três diferenciais sem expandir excessivamente o escopo
+- Avaliar opções como:
+  - Auditoria de alterações
+  - SLA simples com alerta de atraso
+  - Exportação CSV de relatórios
+  - Docker Compose
 
 ## Status
 
-As Etapas 1 a 9 estão concluídas e validadas. O backend e o frontend estão integrados, com autenticação JWT, controle de acesso por perfil, gestão de chamados e ativos e navegação pela interface Angular.
+As Etapas 1 a 10 estão concluídas e validadas.
 
-A próxima etapa é a implementação do dashboard com indicadores baseados nos dados reais da API.
+O HelpDesk Pro possui backend e frontend integrados, autenticação JWT, controle de acesso por perfil, gestão de chamados e ativos, navegação Angular e dashboard com indicadores carregados a partir de dados reais da API.
+
+A próxima etapa é a Etapa 11 — Diferenciais Técnicos.
 
 ## Como executar localmente
 
@@ -120,5 +140,17 @@ A próxima etapa é a implementação do dashboard com indicadores baseados nos 
 3. No terminal, acesse a pasta `backend`.
 4. Execute:
 
-   ```bash
-   ./gradlew bootRun
+   **Windows / PowerShell:**
+
+   ```powershell
+   .\gradlew.bat bootRun
+
+   Linux / macOS / Git Bash:
+./gradlew bootRun
+
+O backend será iniciado em http://localhost:8080.
+
+E o mesmo vale para a parte de testes do backend: no Windows, o comando mais adequado no README é:
+
+```powershell
+.\gradlew.bat test
