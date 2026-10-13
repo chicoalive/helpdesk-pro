@@ -77,6 +77,11 @@ export class AuthService {
     return role === 'ADMIN' || role === 'TECHNICIAN';
   }
 
+  canViewDashboard(): boolean {
+    const role = this.getUserRole();
+    return role === 'ADMIN' || role === 'TECHNICIAN';
+  }
+
   isAuthenticated(): boolean {
     return !!this.getToken();
   }

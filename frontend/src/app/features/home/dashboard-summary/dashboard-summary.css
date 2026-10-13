@@ -1,0 +1,96 @@
+:host {
+  display: block;
+  margin-bottom: 1.75rem;
+}
+
+.alert {
+  padding: 0.85rem 1.15rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.alert-error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.alert-info {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.1rem 1.25rem;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+
+.metric-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.metric-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+}
+
+.metric-list li:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  color: #1e293b;
+}
+
+.metric-value {
+  color: #0078d4;
+  font-weight: 700;
+}
+
+.big-number {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.card-unassigned .big-number {
+  color: #b45309;
+}
+
+.card-maintenance .big-number {
+  color: #0078d4;
+}
+
+.card-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}

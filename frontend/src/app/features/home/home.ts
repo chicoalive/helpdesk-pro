@@ -4,10 +4,11 @@ import { RouterLink } from '@angular/router';
 import { TicketService } from '../../core/services/ticket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { TicketResponse } from '../../core/models/ticket.model';
+import { DashboardSummary } from './dashboard-summary/dashboard-summary';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DashboardSummary],
   styleUrl: './home.css',
   templateUrl: './home.html',
 })
@@ -28,6 +29,10 @@ export class Home implements OnInit {
 
   get canViewAssets(): boolean {
     return this.authService.canViewAssets();
+  }
+
+  get canViewDashboard(): boolean {
+    return this.authService.canViewDashboard();
   }
 
   ngOnInit(): void {

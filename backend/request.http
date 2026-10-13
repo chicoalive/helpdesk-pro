@@ -230,6 +230,26 @@ Authorization: Bearer {{requesterToken}}
 
 
 ### =======================================================
+### DASHBOARD E INDICADORES (Etapa 10 - Apenas ADMIN e TECHNICIAN)
+### =======================================================
+
+### 1. Resumo do Dashboard como Administrador -> 200 OK
+GET http://localhost:8080/dashboard/summary
+Authorization: Bearer {{adminToken}}
+
+### 2. Resumo do Dashboard como Técnico -> 200 OK
+GET http://localhost:8080/dashboard/summary
+Authorization: Bearer {{techToken}}
+
+### 3. Resumo do Dashboard como Solicitante -> 403 Forbidden
+GET http://localhost:8080/dashboard/summary
+Authorization: Bearer {{requesterToken}}
+
+### 4. Resumo do Dashboard sem token -> 401 Unauthorized
+GET http://localhost:8080/dashboard/summary
+
+
+### =======================================================
 ### CENARIOS DE ERRO E VALIDAÇÕES DE SEGURANÇA
 ### =======================================================
 

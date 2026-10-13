@@ -1,0 +1,63 @@
+<section class="dashboard" aria-label="Indicadores">
+  @if (isLoading) {
+    <div class="alert alert-info">Carregando indicadores...</div>
+  }
+
+  @if (errorMessage) {
+    <div class="alert alert-error">{{ errorMessage }}</div>
+  }
+
+  @if (hasData) {
+    <div class="cards-grid">
+      <article class="card card-status">
+        <h2>Chamados por status</h2>
+        <ul class="metric-list">
+          @for (item of statusEntries; track item.key) {
+            <li>
+              <span class="metric-label">{{ item.key }}</span>
+              <strong class="metric-value"> {{ item.value }}</strong>
+            </li>
+          }
+        </ul>
+      </article>
+
+      <article class="card card-priority">
+        <h2>Chamados por prioridade</h2>
+        <ul class="metric-list">
+          @for (item of priorityEntries; track item.key) {
+            <li>
+              <span class="metric-label">{{ item.key }}</span>
+              <strong class="metric-value"> {{ item.value }}</strong>
+            </li>
+          }
+        </ul>
+      </article>
+
+      <article class="card card-technician">
+        <h2>Chamados por técnico</h2>
+        @if (technicians.length > 0) {
+          <ul class="metric-list">
+            @for (tech of technicians; track tech.technicianId) {
+              <li>
+                <span class="metric-label">{{ tech.technicianName }}</span>
+                <strong class="metric-value"> {{ tech.total }}</strong>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="card-empty">Nenhum chamado atribuído a técnicos.</p>
+        }
+      </article>
+
+      <article class="card card-unassigned">
+        <h2>Chamados sem técnico</h2>
+        <p class="big-number">{{ unassignedTickets }}</p>
+      </article>
+
+      <article class="card card-maintenance">
+        <h2>Ativos em manutenção</h2>
+        <p class="big-number">{{ assetsUnderMaintenance }}</p>
+      </article>
+    </div>
+  }
+</section>

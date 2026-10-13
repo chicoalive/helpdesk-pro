@@ -70,6 +70,7 @@ describe('AuthService', () => {
       expect(service.isTechnician()).toBe(false);
       expect(service.isRequester()).toBe(false);
       expect(service.canViewAssets()).toBe(true);
+      expect(service.canViewDashboard()).toBe(true);
       expect(service.getRoleLabel()).toBe('Administrador');
       expect(service.getUserIdentity()).toBe('admin@helpdesk.com');
       expect(service.isAuthenticated()).toBe(true);
@@ -82,6 +83,7 @@ describe('AuthService', () => {
       expect(service.isTechnician()).toBe(true);
       expect(service.isRequester()).toBe(false);
       expect(service.canViewAssets()).toBe(true);
+      expect(service.canViewDashboard()).toBe(true);
       expect(service.getRoleLabel()).toBe('Técnico');
       expect(service.getUserIdentity()).toBe('ana@helpdesk.com');
       expect(service.isAuthenticated()).toBe(true);
@@ -94,6 +96,7 @@ describe('AuthService', () => {
       expect(service.isTechnician()).toBe(false);
       expect(service.isRequester()).toBe(true);
       expect(service.canViewAssets()).toBe(false);
+      expect(service.canViewDashboard()).toBe(false);
       expect(service.getRoleLabel()).toBe('Solicitante');
       expect(service.getUserIdentity()).toBe('carlos@helpdesk.com');
       expect(service.isAuthenticated()).toBe(true);

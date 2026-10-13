@@ -1,18 +1,41 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { provideRouter } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Home } from './home';
 import { TicketService } from '../../core/services/ticket.service';
 import { AuthService } from '../../core/services/auth.service';
+import { DashboardService } from '../../core/services/dashboard.service';
 import { TicketResponse } from '../../core/models/ticket.model';
+import { DashboardResponse } from '../../core/models/dashboard.model';
 
 describe('Home', () => {
   let component: Home;
   let fixture: ComponentFixture<Home>;
   let ticketServiceSpy: { getTickets: ReturnType<typeof vi.fn> };
-  let authServiceSpy: { canViewAssets: ReturnType<typeof vi.fn> };
+  let authServiceSpy: {
+    canViewAssets: ReturnType<typeof vi.fn>;
+    canViewDashboard: ReturnType<typeof vi.fn>;
+  };
+  let dashboardServiceSpy: { getSummary: ReturnType<typeof vi.fn> };
+
+  const mockSummary: DashboardResponse = {
+    ticketsByStatus: {
+      CRIADO: 1,
+      ABERTO: 0,
+      EM_ATENDIMENTO: 2,
+      AGUARDANDO_USUARIO: 0,
+      RESOLVIDO: 0,
+      FECHADO: 0,
+      CANCELADO: 0,
+    },
+    ticketsByPriority: { BAIXA: 1, MEDIA: 0, ALTA: 2 },
+    ticketsByTechnician: [{ technicianId: 3, technicianName: 'Ana Técnica', total: 2 }],
+    unassignedTickets: 1,
+    assetsUnderMaintenance: 4,
+  };
 
   const mockTickets: TicketResponse[] = [
     {
@@ -83,6 +106,10 @@ describe('Home', () => {
     };
     authServiceSpy = {
       canViewAssets: vi.fn().mockReturnValue(true),
+      canViewDashboard: vi.fn().mockReturnValue(true),
+    };
+    dashboardServiceSpy = {
+      getSummary: vi.fn().mockReturnValue(of(mockSummary)),
     };
 
     await TestBed.configureTestingModule({
@@ -91,6 +118,7 @@ describe('Home', () => {
         provideRouter([]),
         { provide: TicketService, useValue: ticketServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
+        { provide: DashboardService, useValue: dashboardServiceSpy },
       ],
     }).compileComponents();
 
@@ -249,5 +277,48 @@ describe('Home', () => {
 
     const compiled = reqFixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.btn-assets')).toBeNull();
+  });
+
+  it('should render dashboard above tickets list and call DashboardService for ADMIN/TECHNICIAN', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(dashboardServiceSpy.getSummary).toHaveBeenCalledTimes(1);
+    const dashboard = compiled.querySelector('app-dashboard-summary');
+    const filters = compiled.querySelector('.filters-bar');
+    expect(dashboard).toBeTruthy();
+    expect(filters).toBeTruthy();
+    expect(dashboard!.compareDocumentPosition(filters!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(compiled.textContent).toContain('Chamados por status');
+    expect(compiled.textContent).toContain('Problema na impressora');
+  });
+
+  it('should NOT render dashboard nor call DashboardService for REQUESTER', async () => {
+    fixture.destroy();
+    dashboardServiceSpy.getSummary.mockClear();
+    authServiceSpy.canViewDashboard.mockReturnValue(false);
+    const reqFixture = TestBed.createComponent(Home);
+    reqFixture.detectChanges();
+    await reqFixture.whenStable();
+    reqFixture.detectChanges();
+
+    const compiled = reqFixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-dashboard-summary')).toBeNull();
+    expect(dashboardServiceSpy.getSummary).not.toHaveBeenCalled();
+    expect(compiled.textContent).toContain('Problema na impressora');
+  });
+
+  it('should keep tickets list working when dashboard fails to load', async () => {
+    dashboardServiceSpy.getSummary.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+    const errFixture = TestBed.createComponent(Home);
+    errFixture.detectChanges();
+    await errFixture.whenStable();
+    errFixture.detectChanges();
+
+    const compiled = errFixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Não foi possível carregar os indicadores');
+    expect(compiled.textContent).toContain('Problema na impressora');
   });
 });

@@ -6,6 +6,10 @@
     }
   </header>
 
+  @if (canViewDashboard) {
+    <app-dashboard-summary></app-dashboard-summary>
+  }
+
   @if (errorMessage) {
     <div class="alert alert-error">{{ errorMessage }}</div>
   }
