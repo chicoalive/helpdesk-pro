@@ -156,7 +156,7 @@ Content-Type: application/json
 GET http://localhost:8080/tickets
 Authorization: Bearer {{techToken}}
 
-### 5. Buscar Chamado por ID -> 200 OK
+### 5. Buscar Chamado por ID -> 200 OK (resposta inclui slaDeadline = createdAt + SLA da prioridade [BAIXA 72h, MEDIA 24h, ALTA 4h] e slaBreached = prazo vencido em chamado ativo)
 GET http://localhost:8080/tickets/1
 Authorization: Bearer {{techToken}}
 

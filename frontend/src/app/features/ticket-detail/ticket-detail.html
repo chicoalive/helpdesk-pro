@@ -1,20 +1,29 @@
 <div class="ticket-detail-container">
-  <div class="header-navigation">
+  <div class="header-navigation no-print">
     <a routerLink="/home" class="btn-back">
       <span class="back-arrow">&larr;</span> Voltar para a listagem
     </a>
+    @if (isRequester && ticket) {
+      <button type="button" class="btn-print" (click)="printReceipt()">
+        Imprimir comprovante
+      </button>
+    }
   </div>
 
   @if (errorMessage) {
-    <div class="alert alert-error">{{ errorMessage }}</div>
+    <div class="alert alert-error no-print">{{ errorMessage }}</div>
   }
 
   @if (isLoadingTicket) {
-    <div class="alert alert-info">Carregando detalhes do chamado...</div>
+    <div class="alert alert-info no-print">Carregando detalhes do chamado...</div>
   }
 
   @if (ticket) {
     <article class="detail-card">
+      <div class="print-brand">
+        <strong>HelpDeskPro</strong> — Comprovante de Chamado
+      </div>
+
       <header class="ticket-header">
         <div class="ticket-title-wrapper">
           <span class="ticket-id">#{{ ticket.id }}</span>
@@ -28,7 +37,9 @@
       <section class="info-grid">
         <div class="info-item">
           <span class="info-label">Categoria</span>
-          <span class="info-value">{{ ticket.category }}</span>
+          <span class="info-value">
+            {{ isRequester ? getCategoryLabel(ticket.category) : ticket.category }}
+          </span>
         </div>
 
         <div class="info-item">
@@ -58,24 +69,56 @@
           </span>
         </div>
 
-        <div class="info-item">
-          <span class="info-label">Ativo Vinculado</span>
-          <span class="info-value">
-            @if (ticket.assetCode) {
-              {{ ticket.assetCode }}
-              @if (ticket.assetType) {
-                <span class="sub-value">({{ ticket.assetType }})</span>
+        @if (!isRequester || ticket.assetId !== null) {
+          <div class="info-item" [class.no-print]="!ticket.assetCode">
+            <span class="info-label">
+              {{ isRequester ? 'Equipamento relacionado' : 'Ativo Vinculado' }}
+            </span>
+            <span class="info-value">
+              @if (ticket.assetCode) {
+                {{ ticket.assetCode }}
+                @if (ticket.assetType) {
+                  <span class="sub-value">({{ ticket.assetType }})</span>
+                }
+              } @else {
+                <span class="text-muted">Nenhum ativo vinculado</span>
               }
-            } @else {
-              <span class="text-muted">Nenhum ativo vinculado</span>
-            }
-          </span>
-        </div>
+            </span>
+          </div>
+        }
 
         <div class="info-item">
           <span class="info-label">Criado em</span>
           <span class="info-value">{{ formatDate(ticket.createdAt) }}</span>
         </div>
+
+        @if (ticket.slaDeadline) {
+          <div class="info-item">
+            <span class="info-label">
+              {{ isRequester ? 'Prazo estimado de atendimento' : 'Prazo do SLA' }}
+            </span>
+            <span class="info-value">{{ formatDate(ticket.slaDeadline) }}</span>
+          </div>
+        }
+
+        @if (ticket.slaBreached || ticket.slaDeadline) {
+          <div class="info-item">
+            <span class="info-label">
+              {{ isRequester ? 'Situação do prazo' : 'Situação do SLA' }}
+            </span>
+            <span
+              class="status-badge"
+              [class.sla-breached]="ticket.slaBreached"
+              [class.sla-within]="!ticket.slaBreached"
+            >
+              @if (isRequester) {
+                {{ ticket.slaBreached ? 'Prazo de atendimento ultrapassado' : 'Dentro do prazo' }}
+              } @else {
+                {{ ticket.slaBreached ? 'SLA atrasado' : 'Dentro do SLA' }}
+              }
+            </span>
+          </div>
+        }
 
         @if (ticket.updatedAt) {
           <div class="info-item">
@@ -96,9 +139,125 @@
           <p class="solution-text">{{ ticket.solution }}</p>
         </section>
       }
+
+      @if (ticket.hasAttachment) {
+        <section class="section-block attachment-block no-print">
+          <h2 class="section-title">Imagem anexada</h2>
+          @if (isLoadingAttachment) {
+            <p class="text-muted">Carregando imagem anexada...</p>
+          } @else if (attachmentErrorMessage) {
+            <div class="alert alert-error">{{ attachmentErrorMessage }}</div>
+          } @else if (attachmentUrl) {
+            <div class="attachment-preview">
+              <img
+                [src]="attachmentUrl"
+                [alt]="ticket.attachmentName || 'Imagem anexada ao chamado'"
+                class="attachment-image"
+              />
+            </div>
+          }
+        </section>
+      }
     </article>
 
-    <section class="comments-card">
+    @if (canManageTicket) {
+      <section class="comments-card management-card no-print">
+        <header class="comments-header">
+          <h2 class="section-title">Atendimento do Chamado</h2>
+        </header>
+
+        @if (operationErrorMessage) {
+          <div class="alert alert-error">{{ operationErrorMessage }}</div>
+        }
+
+        @if (operationSuccessMessage) {
+          <div class="alert alert-info">{{ operationSuccessMessage }}</div>
+        }
+
+        <div class="management-grid">
+          <div class="management-group">
+            <label for="assignTechnicianControl" class="info-label">Atribuir Técnico</label>
+            @if (ticket.technicianId === null) {
+              <div class="management-row">
+                @if (technicians.length > 0) {
+                  <select
+                    id="assignTechnicianSelect"
+                    [(ngModel)]="selectedTechnicianId"
+                    class="management-input"
+                  >
+                    <option [ngValue]="null">Selecione um técnico</option>
+                    @for (tech of technicians; track tech.id) {
+                      <option [ngValue]="tech.id">{{ tech.name }} (#{{ tech.id }})</option>
+                    }
+                  </select>
+                } @else {
+                  <input
+                    id="assignTechnicianInput"
+                    type="number"
+                    min="1"
+                    [(ngModel)]="selectedTechnicianId"
+                    placeholder="ID do técnico"
+                    class="management-input"
+                  />
+                }
+                <button
+                  type="button"
+                  id="btnAssignTechnician"
+                  class="btn-action"
+                  [disabled]="!selectedTechnicianId || isAssigningTechnician"
+                  (click)="onAssignTechnician()"
+                >
+                  {{ isAssigningTechnician ? 'Atribuindo...' : 'Atribuir técnico' }}
+                </button>
+              </div>
+            } @else {
+              <p class="text-muted">
+                Técnico já atribuído: <strong>{{ ticket.technicianName }}</strong>
+              </p>
+            }
+          </div>
+
+          <div class="management-group">
+            <label for="statusSelect" class="info-label">Alterar Status</label>
+            <div class="management-row">
+              <select
+                id="statusSelect"
+                [(ngModel)]="selectedStatus"
+                class="management-input"
+              >
+                @for (st of statusOptions; track st) {
+                  <option [value]="st">{{ st }}</option>
+                }
+              </select>
+              <button
+                type="button"
+                id="btnUpdateStatus"
+                class="btn-action"
+                [disabled]="isUpdatingStatus"
+                (click)="onUpdateStatus()"
+              >
+                {{ isUpdatingStatus ? 'Salvando...' : 'Atualizar status' }}
+              </button>
+            </div>
+          </div>
+
+          @if (shouldShowSolutionField) {
+            <div class="management-group management-full">
+              <label for="solutionInput" class="info-label">Solução Técnica</label>
+              <textarea
+                id="solutionInput"
+                rows="3"
+                [(ngModel)]="solutionText"
+                placeholder="Descreva a solução aplicada ao chamado..."
+                class="management-input management-textarea"
+              ></textarea>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <section class="comments-card no-print">
       <header class="comments-header">
         <h2 class="section-title">Histórico de Comentários</h2>
         <span class="comments-count">{{ comments.length }} comentário(s)</span>
@@ -131,5 +290,42 @@
         }
       </div>
     </section>
+
+    @if (canViewAudit) {
+      <section class="comments-card audit-card no-print">
+        <header class="comments-header">
+          <h2 class="section-title">Auditoria de alterações</h2>
+        </header>
+
+        @if (auditErrorMessage) {
+          <div class="alert alert-error">{{ auditErrorMessage }}</div>
+        }
+
+        @if (isLoadingAudit) {
+          <div class="alert alert-info">Carregando auditoria...</div>
+        }
+
+        <div class="comments-list">
+          @for (entry of auditEntries; track entry.id) {
+            <article class="comment-item audit-item">
+              <header class="comment-meta">
+                <span class="comment-author">{{ entry.changedByName }}</span>
+                <span class="comment-date">{{ formatDate(entry.changedAt) }}</span>
+              </header>
+              <p class="comment-body">
+                <strong>{{ getAuditFieldLabel(entry.fieldName) }}</strong>:
+                {{ formatAuditValue(entry.fieldName, entry.oldValue) }}
+                <span aria-label="para">→</span>
+                {{ formatAuditValue(entry.fieldName, entry.newValue) }}
+              </p>
+            </article>
+          } @empty {
+            @if (!isLoadingAudit && !auditErrorMessage) {
+              <p class="empty-comments">Nenhuma alteração auditada.</p>
+            }
+          }
+        </div>
+      </section>
+    }
   }
 </div>

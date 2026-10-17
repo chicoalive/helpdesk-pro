@@ -1,9 +1,14 @@
 <div class="home-container">
   <header class="home-header">
     <h1>Chamados</h1>
-    @if (canViewAssets) {
-      <a routerLink="/assets" class="btn-assets">Ativos de TI</a>
-    }
+    <div class="header-actions">
+      @if (isRequester) {
+        <a routerLink="/tickets/new" class="btn-new-ticket">Novo Chamado</a>
+      }
+      @if (canViewAssets) {
+        <a routerLink="/assets" class="btn-assets">Ativos de TI</a>
+      }
+    </div>
   </header>
 
   @if (canViewDashboard) {
@@ -60,6 +65,7 @@
           <th>Categoria</th>
           <th>Prioridade</th>
           <th>Status</th>
+          <th>{{ isRequester ? 'Prazo' : 'SLA' }}</th>
           <th>Ações</th>
         </tr>
       </thead>
@@ -68,16 +74,27 @@
           <tr>
             <td class="col-id">#{{ ticket.id }}</td>
             <td class="col-title">{{ ticket.title }}</td>
-            <td>{{ ticket.category }}</td>
+            <td>{{ isRequester ? getCategoryLabel(ticket.category) : ticket.category }}</td>
             <td>{{ ticket.priority }}</td>
             <td>{{ ticket.status }}</td>
+            <td>
+              @if (ticket.slaBreached) {
+                <span class="sla-badge sla-breached">
+                  {{ isRequester ? 'Prazo ultrapassado' : 'SLA atrasado' }}
+                </span>
+              } @else if (ticket.slaDeadline) {
+                <span class="sla-badge sla-within">
+                  {{ isRequester ? 'Dentro do prazo' : 'Dentro do SLA' }}
+                </span>
+              }
+            </td>
             <td class="col-actions">
               <a [routerLink]="['/tickets', ticket.id]" class="btn-details">Detalhes</a>
             </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" class="empty-state">Nenhum chamado encontrado</td>
+            <td colspan="7" class="empty-state">Nenhum chamado encontrado</td>
           </tr>
         }
       </tbody>

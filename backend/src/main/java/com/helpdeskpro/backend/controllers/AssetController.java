@@ -41,6 +41,12 @@ public class AssetController {
         return ResponseEntity.ok(assets);
     }
 
+    @GetMapping("/available")
+    public ResponseEntity<List<AssetResponseDTO>> getAvailableAssets() {
+        List<AssetResponseDTO> assets = assetService.getAvailableAssets();
+        return ResponseEntity.ok(assets);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AssetResponseDTO> getAssetById(@PathVariable Long id) {
         AssetResponseDTO asset = assetService.getAssetById(id);

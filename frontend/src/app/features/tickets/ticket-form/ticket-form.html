@@ -1,0 +1,144 @@
+<div class="ticket-form-container">
+  <div class="header-navigation">
+    <a routerLink="/home" class="btn-back">&larr; Voltar para Chamados</a>
+  </div>
+
+  <div class="form-card">
+    <header class="card-header">
+      <h1 class="card-title">Novo Chamado</h1>
+      <p class="card-subtitle">
+        Preencha os campos abaixo para registrar uma nova solicitação ou problema.
+      </p>
+    </header>
+
+    @if (errorMessage) {
+      <div class="alert alert-error">
+        <span>{{ errorMessage }}</span>
+        @if (existingTicketId) {
+          <div class="existing-ticket-action">
+            <a [routerLink]="['/tickets', existingTicketId]" class="btn-existing-ticket">
+              Ver chamado existente
+            </a>
+          </div>
+        }
+      </div>
+    }
+
+    @if (isRequester) {
+      <form [formGroup]="ticketForm" (ngSubmit)="onSubmit()" class="ticket-form">
+        <div class="form-group">
+          <label for="title" class="form-label">Título *</label>
+          <input
+            id="title"
+            type="text"
+            formControlName="title"
+            placeholder="Ex: Não consigo acessar o sistema"
+            class="form-input"
+            [class.input-error]="title?.invalid && title?.touched"
+          />
+          @if (title?.invalid && title?.touched) {
+            <span class="error-message">O título do chamado é obrigatório.</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="category" class="form-label">Categoria *</label>
+          <select
+            id="category"
+            formControlName="category"
+            class="form-input select-input"
+            [class.input-error]="category?.invalid && category?.touched"
+          >
+            <option value="">Selecione uma categoria</option>
+            @for (opt of categoryOptions; track opt.value) {
+              <option [value]="opt.value">
+                {{ opt.label }}
+              </option>
+            }
+          </select>
+          @if (category?.invalid && category?.touched) {
+            <span class="error-message">A categoria do chamado é obrigatória.</span>
+          }
+          @if (selectedCategoryEstimate) {
+            <div class="estimate-info" aria-live="polite">
+              {{ selectedCategoryEstimate }}
+            </div>
+          }
+        </div>
+
+        @if (isEquipmentIncident) {
+          <div class="form-group">
+            <label for="assetId" class="form-label">Qual equipamento está com problema? *</label>
+            @if (isLoadingAssets) {
+              <div class="alert alert-info">Carregando equipamentos disponíveis...</div>
+            } @else if (availableAssets.length === 0) {
+              <div class="alert alert-warning empty-assets-msg">
+                Não há ativos disponíveis (em uso) para vincular a este chamado no momento.
+              </div>
+            } @else {
+              <select
+                id="assetId"
+                formControlName="assetId"
+                class="form-input select-input"
+                [class.input-error]="assetId?.invalid && assetId?.touched"
+              >
+                <option [ngValue]="null">Selecione um equipamento</option>
+                @for (asset of availableAssets; track asset.id) {
+                  <option [ngValue]="asset.id">
+                    {{ formatAssetLabel(asset) }}
+                  </option>
+                }
+              </select>
+              @if (assetId?.invalid && assetId?.touched) {
+                <span class="error-message">
+                  Selecione o equipamento que está com problema.
+                </span>
+              }
+            }
+          </div>
+        }
+
+        <div class="form-group">
+          <label for="description" class="form-label">Descrição *</label>
+          <textarea
+            id="description"
+            formControlName="description"
+            placeholder="Explique o que aconteceu, quando começou e o que aparece na tela."
+            rows="4"
+            class="form-input textarea-input"
+            [class.input-error]="description?.invalid && description?.touched"
+          ></textarea>
+          @if (description?.invalid && description?.touched) {
+            <span class="error-message">A descrição do chamado é obrigatória.</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="attachment" class="form-label">Anexar imagem do problema (opcional)</label>
+          <input
+            id="attachment"
+            type="file"
+            accept="image/png,image/jpeg"
+            (change)="onFileSelected($event)"
+            class="form-input"
+            [class.input-error]="!!attachmentError"
+          />
+          @if (attachmentError) {
+            <span class="error-message">{{ attachmentError }}</span>
+          }
+        </div>
+
+        <div class="form-actions">
+          <button
+            type="submit"
+            [disabled]="ticketForm.invalid || !!attachmentError || isSaving"
+            class="btn-submit"
+          >
+            {{ isSaving ? 'Abrindo Chamado...' : 'Abrir Chamado' }}
+          </button>
+          <a routerLink="/home" class="btn-cancel">Cancelar</a>
+        </div>
+      </form>
+    }
+  </div>
+</div>

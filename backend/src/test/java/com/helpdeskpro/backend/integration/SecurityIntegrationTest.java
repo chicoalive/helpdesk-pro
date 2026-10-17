@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -262,6 +263,66 @@ class SecurityIntegrationTest {
                         .header("Authorization", "Bearer " + req1Token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)));
+    }
+
+    @Test
+    @DisplayName("GET /assets/available - REQUESTER, ADMIN e TECHNICIAN recebem 200 OK com apenas ativos IN_USE")
+    void availableAssets_AllowedForAllAuthenticatedRoles_AndFiltersOnlyInUse() throws Exception {
+        assetRepository.save(new Asset("NOTE-USE-1", "Notebook", "Dell Latitude", AssetStatus.IN_USE));
+        assetRepository.save(new Asset("MON-USE-2", "Monitor", "LG 24", AssetStatus.IN_USE));
+        assetRepository.save(new Asset("NOTE-INACT", "Notebook", "Inativo", AssetStatus.INACTIVE));
+        assetRepository.save(new Asset("NOTE-MAINT", "Notebook", "Em Manutenção", AssetStatus.UNDER_MAINTENANCE));
+        assetRepository.save(new Asset("NOTE-DISC", "Notebook", "Descartado", AssetStatus.DISCARDED));
+
+        mockMvc.perform(get("/assets/available")
+                        .header("Authorization", "Bearer " + req1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].code", is("NOTE-USE-1")))
+                .andExpect(jsonPath("$[0].status", is("IN_USE")))
+                .andExpect(jsonPath("$[1].code", is("MON-USE-2")))
+                .andExpect(jsonPath("$[1].status", is("IN_USE")));
+
+        mockMvc.perform(get("/assets/available")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+
+        mockMvc.perform(get("/assets/available")
+                        .header("Authorization", "Bearer " + tech1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+    }
+
+    @Test
+    @DisplayName("GET /assets/available - Sem autenticação retorna 401 Unauthorized")
+    void availableAssets_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(get("/assets/available"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status", is(401)));
+    }
+
+    @Test
+    @DisplayName("GET /assets/available - Quando não houver ativos IN_USE retorna 200 OK com lista vazia")
+    void availableAssets_WhenNoInUseAssets_ReturnsEmptyList() throws Exception {
+        assetRepository.save(new Asset("NOTE-INACT", "Notebook", "Inativo", AssetStatus.INACTIVE));
+        assetRepository.save(new Asset("NOTE-MAINT", "Notebook", "Em Manutenção", AssetStatus.UNDER_MAINTENANCE));
+
+        mockMvc.perform(get("/assets/available")
+                        .header("Authorization", "Bearer " + req1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("REQUESTER tentando ler ativo por ID (GET /assets/{id}) continua recebendo 403 Forbidden")
+    void requesterReadingAssetById_Returns403() throws Exception {
+        Asset saved = assetRepository.save(new Asset("NOTE-001", "Notebook", "Dell", AssetStatus.IN_USE));
+
+        mockMvc.perform(get("/assets/" + saved.getId())
+                        .header("Authorization", "Bearer " + req1Token))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status", is(403)));
     }

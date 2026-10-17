@@ -14,6 +14,7 @@ public class ErrorResponse {
     private String message;
     private String path;
     private Map<String, String> validationErrors;
+    private Long existingTicketId;
 
     public ErrorResponse() {
     }
@@ -59,6 +60,10 @@ public class ErrorResponse {
         return validationErrors;
     }
 
+    public Long getExistingTicketId() {
+        return existingTicketId;
+    }
+
     public void setTimestamp(Instant timestamp) {
         this.timestamp = timestamp;
     }
@@ -81,5 +86,9 @@ public class ErrorResponse {
 
     public void setValidationErrors(Map<String, String> validationErrors) {
         this.validationErrors = validationErrors;
+    }
+
+    public void setExistingTicketId(Long existingTicketId) {
+        this.existingTicketId = existingTicketId;
     }
 }

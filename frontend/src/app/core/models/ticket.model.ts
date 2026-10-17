@@ -28,6 +28,8 @@ export interface TicketResponse {
   priority: TicketPriority;
   createdAt: string;
   updatedAt: string | null;
+  slaDeadline: string | null;
+  slaBreached: boolean;
   requesterId: number;
   requesterName: string;
   requesterEmail: string;
@@ -37,6 +39,32 @@ export interface TicketResponse {
   assetId: number | null;
   assetCode: string | null;
   assetType: string | null;
+  hasAttachment?: boolean;
+  attachmentName?: string | null;
+  attachmentContentType?: string | null;
+}
+
+export interface TicketRequest {
+  title: string;
+  description: string;
+  category: TicketCategory;
+  assetId: number | null;
+}
+
+export interface TicketAssignTechnicianRequest {
+  technicianId: number;
+}
+
+export interface TicketStatusUpdateRequest {
+  status: TicketStatus;
+  solution?: string | null;
+}
+
+export interface UserSummary {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
 }
 
 export interface TicketCommentResponse {

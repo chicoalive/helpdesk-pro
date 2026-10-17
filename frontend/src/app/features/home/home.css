@@ -35,6 +35,33 @@
   letter-spacing: -0.02em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-new-ticket {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: #0078d4;
+  border: 1px solid #0078d4;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0, 120, 212, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-new-ticket:hover {
+  background-color: #106ebe;
+  border-color: #106ebe;
+}
+
 .btn-assets {
   display: inline-flex;
   align-items: center;
@@ -52,7 +79,7 @@
 
 .btn-assets:hover {
   background-color: #0078d4;
-  color: #ffffff;
+  color: #fff;
   border-color: #0078d4;
 }
 
@@ -182,6 +209,27 @@ select.form-control {
 .col-title {
   font-weight: 500;
   color: #0f172a;
+}
+
+.sla-badge {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sla-breached {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.sla-within {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
 }
 
 .col-actions {

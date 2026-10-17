@@ -1,6 +1,7 @@
 package com.helpdeskpro.backend.services;
 
 import com.helpdeskpro.backend.domain.Asset;
+import com.helpdeskpro.backend.domain.AssetStatus;
 import com.helpdeskpro.backend.dto.AssetRequestDTO;
 import com.helpdeskpro.backend.dto.AssetResponseDTO;
 import com.helpdeskpro.backend.dto.AssetStatusUpdateDTO;
@@ -41,6 +42,14 @@ public class AssetService {
     @Transactional(readOnly = true)
     public List<AssetResponseDTO> getAllAssets() {
         return assetRepository.findAll()
+                .stream()
+                .map(AssetResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssetResponseDTO> getAvailableAssets() {
+        return assetRepository.findByStatus(AssetStatus.IN_USE)
                 .stream()
                 .map(AssetResponseDTO::fromEntity)
                 .toList();

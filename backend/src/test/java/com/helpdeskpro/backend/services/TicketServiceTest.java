@@ -17,6 +17,7 @@ import com.helpdeskpro.backend.exceptions.BusinessRuleException;
 import com.helpdeskpro.backend.exceptions.TicketNotFoundException;
 import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.AssetRepository;
+import com.helpdeskpro.backend.repositories.TicketAuditLogRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
 import com.helpdeskpro.backend.security.SecurityUtils;
@@ -53,6 +54,9 @@ class TicketServiceTest {
 
     @Mock
     private AssetRepository assetRepository;
+
+    @Mock
+    private TicketAuditLogRepository ticketAuditLogRepository;
 
     @Mock
     private SecurityUtils securityUtils;
@@ -477,5 +481,46 @@ class TicketServiceTest {
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
 
         assertThrows(AccessDeniedException.class, () -> ticketService.getTicketById(1L));
+    }
+
+    @Test
+    @DisplayName("Deve bloquear novo chamado quando solicitante já possui chamado ativo na mesma categoria e expor existingTicketId")
+    void createTicket_DuplicateActiveCategory_ThrowsBusinessRuleExceptionWithExistingId() {
+        Ticket existing = new Ticket("Erro antigo", "Desc antiga", TicketCategory.INCIDENTE_SISTEMA, TicketPriority.ALTA, requester, null);
+        existing.setId(77L);
+        existing.setStatus(TicketStatus.EM_ATENDIMENTO);
+
+        TicketRequestDTO dto = new TicketRequestDTO("Outro título", "Outra descrição", TicketCategory.INCIDENTE_SISTEMA, null);
+
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+        when(ticketRepository.findFirstByRequesterIdAndCategoryAndStatusInOrderByIdAsc(
+                any(), any(), any()
+        )).thenReturn(Optional.of(existing));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
+        assertEquals("Você já possui um chamado em andamento para este tipo de problema. Acompanhe o chamado #77.", ex.getMessage());
+        assertEquals(77L, ex.getExistingTicketId());
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear INCIDENTE_EQUIPAMENTO apenas quando já existir chamado ativo para o mesmo equipamento do solicitante")
+    void createTicket_DuplicateEquipmentSameAsset_ThrowsBusinessRuleExceptionWithExistingId() {
+        Ticket existing = new Ticket("Defeito anterior", "Desc", TicketCategory.INCIDENTE_EQUIPAMENTO, TicketPriority.MEDIA, requester, activeAsset);
+        existing.setId(88L);
+        existing.setStatus(TicketStatus.AGUARDANDO_USUARIO);
+
+        TicketRequestDTO dto = new TicketRequestDTO("Novo relato no mesmo ativo", "Outra desc", TicketCategory.INCIDENTE_EQUIPAMENTO, 1L);
+
+        when(securityUtils.getCurrentUser()).thenReturn(requester);
+        when(assetRepository.findById(1L)).thenReturn(Optional.of(activeAsset));
+        when(ticketRepository.findFirstByRequesterIdAndCategoryAndAssetIdAndStatusInOrderByIdAsc(
+                any(), any(), any(), any()
+        )).thenReturn(Optional.of(existing));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.createTicket(dto));
+        assertEquals("Você já possui um chamado em andamento para este tipo de problema. Acompanhe o chamado #88.", ex.getMessage());
+        assertEquals(88L, ex.getExistingTicketId());
+        verify(ticketRepository, never()).save(any());
     }
 }

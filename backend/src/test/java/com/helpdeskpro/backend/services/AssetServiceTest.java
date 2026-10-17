@@ -176,6 +176,38 @@ class AssetServiceTest {
     }
 
     @Test
+    @DisplayName("Deve retornar somente ativos com status IN_USE em getAvailableAssets")
+    void getAvailableAssets_ReturnsOnlyInUseAssets() {
+        List<Asset> inUseAssets = List.of(
+                new Asset(1L, "NOTE-001", "Notebook", "Dell", AssetStatus.IN_USE),
+                new Asset(2L, "MON-001", "Monitor", "LG", AssetStatus.IN_USE)
+        );
+
+        when(assetRepository.findByStatus(AssetStatus.IN_USE)).thenReturn(inUseAssets);
+
+        List<AssetResponseDTO> result = assetService.getAvailableAssets();
+
+        assertEquals(2, result.size());
+        assertEquals("NOTE-001", result.get(0).getCode());
+        assertEquals(AssetStatus.IN_USE, result.get(0).getStatus());
+        assertEquals("MON-001", result.get(1).getCode());
+        assertEquals(AssetStatus.IN_USE, result.get(1).getStatus());
+        verify(assetRepository).findByStatus(AssetStatus.IN_USE);
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando não houver ativos IN_USE em getAvailableAssets")
+    void getAvailableAssets_WhenEmpty_ReturnsEmptyList() {
+        when(assetRepository.findByStatus(AssetStatus.IN_USE)).thenReturn(List.of());
+
+        List<AssetResponseDTO> result = assetService.getAvailableAssets();
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(assetRepository).findByStatus(AssetStatus.IN_USE);
+    }
+
+    @Test
     @DisplayName("Deve lançar AssetNotFoundException ao tentar excluir ativo inexistente")
     void deleteAsset_NotFound_ThrowsException() {
         when(assetRepository.existsById(99L)).thenReturn(false);

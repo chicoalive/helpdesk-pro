@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TicketService } from '../../core/services/ticket.service';
 import { AuthService } from '../../core/services/auth.service';
-import { TicketResponse } from '../../core/models/ticket.model';
+import { TicketCategory, TicketResponse } from '../../core/models/ticket.model';
 import { DashboardSummary } from './dashboard-summary/dashboard-summary';
 
 @Component({
@@ -33,6 +33,27 @@ export class Home implements OnInit {
 
   get canViewDashboard(): boolean {
     return this.authService.canViewDashboard();
+  }
+
+  get isRequester(): boolean {
+    return this.authService.isRequester();
+  }
+
+  getCategoryLabel(category: TicketCategory | string): string {
+    switch (category) {
+      case 'INCIDENTE_SISTEMA':
+        return 'Problema no sistema';
+      case 'INCIDENTE_EQUIPAMENTO':
+        return 'Problema no equipamento';
+      case 'SOLICITACAO_ACESSO':
+        return 'Solicitação de acesso';
+      case 'DUVIDA':
+        return 'Dúvida';
+      case 'OUTRO':
+        return 'Outro';
+      default:
+        return category;
+    }
   }
 
   ngOnInit(): void {

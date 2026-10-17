@@ -64,6 +64,23 @@ describe('AssetService', () => {
     req.flush(mockAssets);
   });
 
+  it('should send GET request to /api/assets/available with Authorization header', () => {
+    localStorage.setItem('helpdesk_token', 'jwt-token-teste');
+    const availableAssets: AssetResponse[] = [mockAssets[0]];
+
+    service.getAvailableAssets().subscribe((assets) => {
+      expect(assets).toEqual(availableAssets);
+      expect(assets.length).toBe(1);
+      expect(assets[0].status).toBe('IN_USE');
+    });
+
+    const req = httpMock.expectOne('/api/assets/available');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer jwt-token-teste');
+
+    req.flush(availableAssets);
+  });
+
   it('should send GET request to /api/assets/{id} with Authorization header', () => {
     localStorage.setItem('helpdesk_token', 'jwt-token-teste');
 

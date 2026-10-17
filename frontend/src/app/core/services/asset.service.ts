@@ -24,6 +24,12 @@ export class AssetService {
     });
   }
 
+  getAvailableAssets(): Observable<AssetResponse[]> {
+    return this.http.get<AssetResponse[]>(`${this.apiUrl}/available`, {
+      headers: this.getAuthHeaders(),
+    });
+  }
+
   getAssetById(id: number): Observable<AssetResponse> {
     return this.http.get<AssetResponse>(`${this.apiUrl}/${id}`, {
       headers: this.getAuthHeaders(),

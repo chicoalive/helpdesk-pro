@@ -69,6 +69,15 @@ public class Ticket {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Column(name = "attachment_name")
+    private String attachmentName;
+
+    @Column(name = "attachment_content_type")
+    private String attachmentContentType;
+
+    @Column(name = "attachment_data")
+    private byte[] attachmentData;
+
     public Ticket() {
     }
 
@@ -191,5 +200,29 @@ public class Ticket {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getAttachmentName() {
+        return attachmentName;
+    }
+
+    public void setAttachmentName(String attachmentName) {
+        this.attachmentName = attachmentName;
+    }
+
+    public String getAttachmentContentType() {
+        return attachmentContentType;
+    }
+
+    public void setAttachmentContentType(String attachmentContentType) {
+        this.attachmentContentType = attachmentContentType;
+    }
+
+    public byte[] getAttachmentData() {
+        return attachmentData;
+    }
+
+    public void setAttachmentData(byte[] attachmentData) {
+        this.attachmentData = attachmentData;
     }
 }

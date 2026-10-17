@@ -34,10 +34,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/assets/available").hasAnyRole("REQUESTER", "ADMIN", "TECHNICIAN")
                         .requestMatchers(HttpMethod.GET, "/assets", "/assets/**").hasAnyRole("ADMIN", "TECHNICIAN")
                         .requestMatchers("/assets", "/assets/**").hasRole("ADMIN")
                         .requestMatchers("/users", "/users/**").hasRole("ADMIN")
                         .requestMatchers("/dashboard", "/dashboard/**").hasAnyRole("ADMIN", "TECHNICIAN")
+                        .requestMatchers(HttpMethod.GET, "/tickets/*/audit").hasAnyRole("ADMIN", "TECHNICIAN")
                         .requestMatchers("/tickets", "/tickets/**").authenticated()
                         .anyRequest().authenticated()
                 )

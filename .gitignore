@@ -14,5 +14,6 @@ Thumbs.db
 # Configuracoes locais e segredos
 .env
 .env.*
+!.env.example
 *.local.properties
 http-client.private.env.json

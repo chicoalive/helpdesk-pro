@@ -5,6 +5,7 @@ import com.helpdeskpro.backend.domain.AssetStatus;
 import com.helpdeskpro.backend.domain.User;
 import com.helpdeskpro.backend.domain.UserRole;
 import com.helpdeskpro.backend.domain.entities.Ticket;
+import com.helpdeskpro.backend.domain.entities.TicketAuditLog;
 import com.helpdeskpro.backend.domain.enums.TicketCategory;
 import com.helpdeskpro.backend.domain.enums.TicketPriority;
 import com.helpdeskpro.backend.domain.enums.TicketStatus;
@@ -18,27 +19,46 @@ import com.helpdeskpro.backend.exceptions.TicketNotFoundException;
 import com.helpdeskpro.backend.exceptions.UserNotFoundException;
 import com.helpdeskpro.backend.repositories.AssetRepository;
 import com.helpdeskpro.backend.repositories.TicketRepository;
+import com.helpdeskpro.backend.repositories.TicketAuditLogRepository;
 import com.helpdeskpro.backend.repositories.UserRepository;
 import com.helpdeskpro.backend.security.SecurityUtils;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class TicketService {
 
+    private static final long MAX_ATTACHMENT_SIZE_BYTES = 2L * 1024 * 1024;
+    private static final List<TicketStatus> ACTIVE_STATUSES = List.of(
+            TicketStatus.CRIADO,
+            TicketStatus.ABERTO,
+            TicketStatus.EM_ATENDIMENTO,
+            TicketStatus.AGUARDANDO_USUARIO
+    );
+
+    public record TicketAttachmentData(String fileName, String contentType, byte[] data) {
+    }
+
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final AssetRepository assetRepository;
+    private final TicketAuditLogRepository ticketAuditLogRepository;
     private final SecurityUtils securityUtils;
 
     public TicketService(TicketRepository ticketRepository, UserRepository userRepository,
-                         AssetRepository assetRepository, SecurityUtils securityUtils) {
+                         AssetRepository assetRepository, TicketAuditLogRepository ticketAuditLogRepository,
+                         SecurityUtils securityUtils) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.assetRepository = assetRepository;
+        this.ticketAuditLogRepository = ticketAuditLogRepository;
         this.securityUtils = securityUtils;
     }
 
@@ -66,6 +86,12 @@ public class TicketService {
             }
         }
 
+        validateNoDuplicateActiveTicket(
+                requester.getId(),
+                dto.getCategory(),
+                asset != null ? asset.getId() : dto.getAssetId()
+        );
+
         TicketPriority priority = calculatePriority(dto.getCategory());
 
         Ticket ticket = new Ticket(
@@ -81,6 +107,36 @@ public class TicketService {
 
         Ticket savedTicket = ticketRepository.save(ticket);
         return TicketResponseDTO.fromEntity(savedTicket);
+    }
+
+    private void validateNoDuplicateActiveTicket(Long requesterId, TicketCategory category, Long assetId) {
+        if (category == TicketCategory.DUVIDA || category == TicketCategory.OUTRO) {
+            return;
+        }
+
+        Optional<Ticket> existingActiveTicket;
+        if (category == TicketCategory.INCIDENTE_EQUIPAMENTO) {
+            existingActiveTicket = ticketRepository.findFirstByRequesterIdAndCategoryAndAssetIdAndStatusInOrderByIdAsc(
+                    requesterId,
+                    category,
+                    assetId,
+                    ACTIVE_STATUSES
+            );
+        } else {
+            existingActiveTicket = ticketRepository.findFirstByRequesterIdAndCategoryAndStatusInOrderByIdAsc(
+                    requesterId,
+                    category,
+                    ACTIVE_STATUSES
+            );
+        }
+
+        if (existingActiveTicket != null && existingActiveTicket.isPresent()) {
+            Long existingId = existingActiveTicket.get().getId();
+            throw new BusinessRuleException(
+                    "Você já possui um chamado em andamento para este tipo de problema. Acompanhe o chamado #" + existingId + ".",
+                    existingId
+            );
+        }
     }
 
     @Transactional(readOnly = true)
@@ -151,9 +207,20 @@ public class TicketService {
             throw new BusinessRuleException("Apenas usuários com papel TECHNICIAN podem ser atribuídos como técnico.");
         }
 
+        User previousTechnician = ticket.getTechnician();
+        TicketStatus previousStatus = ticket.getStatus();
         ticket.setTechnician(technician);
         if (ticket.getStatus() == TicketStatus.CRIADO) {
             ticket.setStatus(TicketStatus.ABERTO);
+        }
+
+        if (!Objects.equals(previousTechnician != null ? previousTechnician.getId() : null, technician.getId())) {
+            recordAudit(ticket, currentUser, "technician",
+                    previousTechnician != null ? previousTechnician.getId().toString() : null,
+                    technician.getId().toString());
+        }
+        if (previousStatus != ticket.getStatus()) {
+            recordAudit(ticket, currentUser, "status", previousStatus.name(), ticket.getStatus().name());
         }
 
         Ticket updatedTicket = ticketRepository.save(ticket);
@@ -182,19 +249,31 @@ public class TicketService {
 
         TicketStatus currentStatus = ticket.getStatus();
         TicketStatus newStatus = dto.getStatus();
+        String previousSolution = ticket.getSolution();
         String effectiveSolution = dto.getSolution() != null && !dto.getSolution().trim().isEmpty()
                 ? dto.getSolution().trim()
-                : (ticket.getSolution() != null ? ticket.getSolution().trim() : null);
+                : (previousSolution != null ? previousSolution.trim() : null);
 
         validateStatusTransition(currentStatus, newStatus, effectiveSolution);
 
         if (dto.getSolution() != null && !dto.getSolution().trim().isEmpty()) {
-            ticket.setSolution(dto.getSolution().trim());
+            String newSolution = dto.getSolution().trim();
+            if (!Objects.equals(previousSolution, newSolution)) {
+                ticket.setSolution(newSolution);
+                recordAudit(ticket, currentUser, "solution", previousSolution, newSolution);
+            }
         }
-        ticket.setStatus(newStatus);
+        if (currentStatus != newStatus) {
+            ticket.setStatus(newStatus);
+            recordAudit(ticket, currentUser, "status", currentStatus.name(), newStatus.name());
+        }
 
         Ticket updatedTicket = ticketRepository.save(ticket);
         return TicketResponseDTO.fromEntity(updatedTicket);
+    }
+
+    private void recordAudit(Ticket ticket, User changedBy, String fieldName, String oldValue, String newValue) {
+        ticketAuditLogRepository.save(new TicketAuditLog(ticket, changedBy, fieldName, oldValue, newValue));
     }
 
     private void validateStatusTransition(TicketStatus currentStatus, TicketStatus newStatus, String solution) {
@@ -251,6 +330,71 @@ public class TicketService {
         }
 
         throw new BusinessRuleException("Transição de status não permitida de " + currentStatus + " para " + newStatus + ".");
+    }
+
+    @Transactional
+    public TicketResponseDTO uploadAttachment(Long ticketId, MultipartFile file) {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser.getRole() != UserRole.REQUESTER) {
+            throw new AccessDeniedException("Apenas solicitantes podem anexar imagens ao chamado.");
+        }
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
+
+        if (!ticket.getRequester().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Você não possui permissão para anexar imagem a este chamado.");
+        }
+
+        if (ticket.getAttachmentData() != null && ticket.getAttachmentData().length > 0) {
+            throw new BusinessRuleException("Este chamado já possui uma imagem anexada.");
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new BusinessRuleException("O arquivo de imagem não pode estar vazio.");
+        }
+
+        if (file.getSize() > MAX_ATTACHMENT_SIZE_BYTES) {
+            throw new BusinessRuleException("A imagem deve ter no máximo 2 MB.");
+        }
+
+        String contentType = file.getContentType();
+        if (!"image/png".equalsIgnoreCase(contentType) && !"image/jpeg".equalsIgnoreCase(contentType)) {
+            throw new BusinessRuleException("Formato de arquivo inválido. Apenas imagens PNG e JPG/JPEG são permitidas.");
+        }
+
+        try {
+            String originalName = file.getOriginalFilename();
+            ticket.setAttachmentName(originalName != null && !originalName.isBlank() ? originalName : "anexo");
+            ticket.setAttachmentContentType(contentType.toLowerCase());
+            ticket.setAttachmentData(file.getBytes());
+        } catch (IOException e) {
+            throw new BusinessRuleException("Não foi possível processar o arquivo enviado.");
+        }
+
+        Ticket savedTicket = ticketRepository.save(ticket);
+        return TicketResponseDTO.fromEntity(savedTicket);
+    }
+
+    @Transactional(readOnly = true)
+    public TicketAttachmentData getTicketAttachment(Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
+
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser.getRole() == UserRole.REQUESTER && !ticket.getRequester().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Você não possui permissão para visualizar o anexo deste chamado.");
+        }
+
+        if (ticket.getAttachmentData() == null || ticket.getAttachmentData().length == 0) {
+            throw new TicketNotFoundException("O chamado não possui anexo.");
+        }
+
+        return new TicketAttachmentData(
+                ticket.getAttachmentName(),
+                ticket.getAttachmentContentType(),
+                ticket.getAttachmentData()
+        );
     }
 
     private TicketPriority calculatePriority(TicketCategory category) {

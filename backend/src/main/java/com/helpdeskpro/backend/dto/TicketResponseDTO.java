@@ -5,6 +5,7 @@ import com.helpdeskpro.backend.domain.enums.TicketCategory;
 import com.helpdeskpro.backend.domain.enums.TicketPriority;
 import com.helpdeskpro.backend.domain.enums.TicketStatus;
 
+import java.time.Duration;
 import java.time.Instant;
 
 public class TicketResponseDTO {
@@ -31,6 +32,13 @@ public class TicketResponseDTO {
     private String assetCode;
     private String assetType;
 
+    private Instant slaDeadline;
+    private boolean slaBreached;
+
+    private boolean hasAttachment;
+    private String attachmentName;
+    private String attachmentContentType;
+
     public TicketResponseDTO() {
     }
 
@@ -38,7 +46,8 @@ public class TicketResponseDTO {
                              TicketCategory category, TicketPriority priority, Instant createdAt, Instant updatedAt,
                              Long requesterId, String requesterName, String requesterEmail,
                              Long technicianId, String technicianName, String technicianEmail,
-                             Long assetId, String assetCode, String assetType) {
+                             Long assetId, String assetCode, String assetType,
+                             Instant slaDeadline, boolean slaBreached) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -57,9 +66,15 @@ public class TicketResponseDTO {
         this.assetId = assetId;
         this.assetCode = assetCode;
         this.assetType = assetType;
+        this.slaDeadline = slaDeadline;
+        this.slaBreached = slaBreached;
     }
 
     public static TicketResponseDTO fromEntity(Ticket ticket) {
+        return fromEntity(ticket, Instant.now());
+    }
+
+    public static TicketResponseDTO fromEntity(Ticket ticket, Instant now) {
         TicketResponseDTO dto = new TicketResponseDTO();
         dto.setId(ticket.getId());
         dto.setTitle(ticket.getTitle());
@@ -70,6 +85,15 @@ public class TicketResponseDTO {
         dto.setPriority(ticket.getPriority());
         dto.setCreatedAt(ticket.getCreatedAt());
         dto.setUpdatedAt(ticket.getUpdatedAt());
+
+        Instant slaDeadline = calculateSlaDeadline(ticket.getCreatedAt(), ticket.getPriority());
+        dto.setSlaDeadline(slaDeadline);
+        dto.setSlaBreached(isSlaBreached(slaDeadline, ticket.getStatus(), now));
+
+        boolean hasAttachment = ticket.getAttachmentData() != null && ticket.getAttachmentData().length > 0;
+        dto.setHasAttachment(hasAttachment);
+        dto.setAttachmentName(hasAttachment ? ticket.getAttachmentName() : null);
+        dto.setAttachmentContentType(hasAttachment ? ticket.getAttachmentContentType() : null);
 
         if (ticket.getRequester() != null) {
             dto.setRequesterId(ticket.getRequester().getId());
@@ -90,6 +114,31 @@ public class TicketResponseDTO {
         }
 
         return dto;
+    }
+
+    /**
+     * SLA simples em horas corridas: createdAt + horas da prioridade.
+     * Valor derivado (não persistido). Retorna null se createdAt ou priority forem nulos.
+     */
+    static Instant calculateSlaDeadline(Instant createdAt, TicketPriority priority) {
+        if (createdAt == null || priority == null) {
+            return null;
+        }
+        return createdAt.plus(Duration.ofHours(priority.getSlaHours()));
+    }
+
+    /**
+     * Alerta atual de SLA: true somente se o prazo já passou e o chamado não está em estado terminal
+     * (RESOLVIDO, FECHADO, CANCELADO). AGUARDANDO_USUARIO não pausa o SLA nesta versão.
+     */
+    static boolean isSlaBreached(Instant slaDeadline, TicketStatus status, Instant now) {
+        if (slaDeadline == null || now == null) {
+            return false;
+        }
+        if (status == TicketStatus.RESOLVIDO || status == TicketStatus.FECHADO || status == TicketStatus.CANCELADO) {
+            return false;
+        }
+        return now.isAfter(slaDeadline);
     }
 
     public Long getId() {
@@ -234,5 +283,45 @@ public class TicketResponseDTO {
 
     public void setAssetType(String assetType) {
         this.assetType = assetType;
+    }
+
+    public Instant getSlaDeadline() {
+        return slaDeadline;
+    }
+
+    public void setSlaDeadline(Instant slaDeadline) {
+        this.slaDeadline = slaDeadline;
+    }
+
+    public boolean isSlaBreached() {
+        return slaBreached;
+    }
+
+    public void setSlaBreached(boolean slaBreached) {
+        this.slaBreached = slaBreached;
+    }
+
+    public boolean isHasAttachment() {
+        return hasAttachment;
+    }
+
+    public void setHasAttachment(boolean hasAttachment) {
+        this.hasAttachment = hasAttachment;
+    }
+
+    public String getAttachmentName() {
+        return attachmentName;
+    }
+
+    public void setAttachmentName(String attachmentName) {
+        this.attachmentName = attachmentName;
+    }
+
+    public String getAttachmentContentType() {
+        return attachmentContentType;
+    }
+
+    public void setAttachmentContentType(String attachmentContentType) {
+        this.attachmentContentType = attachmentContentType;
     }
 }

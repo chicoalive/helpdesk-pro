@@ -7,6 +7,7 @@ import com.helpdeskpro.backend.dto.TicketStatusUpdateDTO;
 import com.helpdeskpro.backend.services.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -14,7 +15,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -66,5 +69,21 @@ public class TicketController {
             @Valid @RequestBody TicketStatusUpdateDTO dto) {
         TicketResponseDTO updated = ticketService.updateTicketStatus(id, dto);
         return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping(value = "/{id}/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<TicketResponseDTO> uploadAttachment(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        TicketResponseDTO updated = ticketService.uploadAttachment(id, file);
+        return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{id}/attachment")
+    public ResponseEntity<byte[]> getAttachment(@PathVariable Long id) {
+        TicketService.TicketAttachmentData attachment = ticketService.getTicketAttachment(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(attachment.contentType()))
+                .body(attachment.data());
     }
 }

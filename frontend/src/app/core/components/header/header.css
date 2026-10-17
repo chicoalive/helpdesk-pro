@@ -168,3 +168,9 @@
     border-top: 1px solid #f1f5f9;
   }
 }
+
+@media print {
+  :host {
+    display: none !important;
+  }
+}

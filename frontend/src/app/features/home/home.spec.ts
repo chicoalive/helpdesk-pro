@@ -18,6 +18,7 @@ describe('Home', () => {
   let authServiceSpy: {
     canViewAssets: ReturnType<typeof vi.fn>;
     canViewDashboard: ReturnType<typeof vi.fn>;
+    isRequester: ReturnType<typeof vi.fn>;
   };
   let dashboardServiceSpy: { getSummary: ReturnType<typeof vi.fn> };
 
@@ -48,6 +49,8 @@ describe('Home', () => {
       priority: 'MEDIA',
       createdAt: '2026-09-25T10:00:00Z',
       updatedAt: null,
+      slaDeadline: '2026-09-26T10:00:00Z',
+      slaBreached: false,
       requesterId: 1,
       requesterName: 'Maria Solicitante',
       requesterEmail: 'maria@helpdesk.com',
@@ -68,6 +71,8 @@ describe('Home', () => {
       priority: 'ALTA',
       createdAt: '2026-09-25T11:00:00Z',
       updatedAt: null,
+      slaDeadline: '2026-09-25T15:00:00Z',
+      slaBreached: true,
       requesterId: 2,
       requesterName: 'Carlos Solicitante',
       requesterEmail: 'carlos@helpdesk.com',
@@ -88,6 +93,8 @@ describe('Home', () => {
       priority: 'BAIXA',
       createdAt: '2026-09-25T12:00:00Z',
       updatedAt: '2026-09-25T13:00:00Z',
+      slaDeadline: null,
+      slaBreached: false,
       requesterId: 1,
       requesterName: 'Maria Solicitante',
       requesterEmail: 'maria@helpdesk.com',
@@ -107,6 +114,7 @@ describe('Home', () => {
     authServiceSpy = {
       canViewAssets: vi.fn().mockReturnValue(true),
       canViewDashboard: vi.fn().mockReturnValue(true),
+      isRequester: vi.fn().mockReturnValue(false),
     };
     dashboardServiceSpy = {
       getSummary: vi.fn().mockReturnValue(of(mockSummary)),
@@ -145,6 +153,8 @@ describe('Home', () => {
     expect(compiled.textContent).toContain('INCIDENTE_EQUIPAMENTO');
     expect(compiled.textContent).toContain('MEDIA');
     expect(compiled.textContent).toContain('ABERTO');
+    expect(compiled.textContent).toContain('Dentro do SLA');
+    expect(compiled.textContent).toContain('SLA atrasado');
 
     const actionButtons = compiled.querySelectorAll('.btn-details');
     expect(actionButtons.length).toBe(3);
@@ -185,6 +195,15 @@ describe('Home', () => {
     component.priorityFilter = 'BAIXA';
     expect(component.filteredTickets.length).toBe(1);
     expect(component.filteredTickets[0].id).toBe(12);
+  });
+
+  it('should not show an SLA indicator when there is no deadline and it is not breached', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const row = fixture.nativeElement.querySelector('tbody tr:nth-child(3)') as HTMLElement;
+    expect(row.textContent).not.toContain('SLA atrasado');
+    expect(row.textContent).not.toContain('Dentro do SLA');
   });
 
   it('should filter tickets by combined filters', () => {
@@ -320,5 +339,160 @@ describe('Home', () => {
     const compiled = errFixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Não foi possível carregar os indicadores');
     expect(compiled.textContent).toContain('Problema na impressora');
+  });
+
+  it('should display "Novo Chamado" button pointing to /tickets/new when user is REQUESTER', async () => {
+    authServiceSpy.isRequester.mockReturnValue(true);
+    authServiceSpy.canViewAssets.mockReturnValue(false);
+    authServiceSpy.canViewDashboard.mockReturnValue(false);
+
+    const reqFixture = TestBed.createComponent(Home);
+    reqFixture.detectChanges();
+    await reqFixture.whenStable();
+
+    const compiled = reqFixture.nativeElement as HTMLElement;
+    const newTicketBtn = compiled.querySelector('.btn-new-ticket') as HTMLAnchorElement;
+    expect(newTicketBtn).toBeTruthy();
+    expect(newTicketBtn.textContent).toContain('Novo Chamado');
+    expect(newTicketBtn.getAttribute('href')).toBe('/tickets/new');
+  });
+
+  it('should NOT display "Novo Chamado" button when user is ADMIN', async () => {
+    authServiceSpy.isRequester.mockReturnValue(false);
+    authServiceSpy.canViewAssets.mockReturnValue(true);
+    authServiceSpy.canViewDashboard.mockReturnValue(true);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.btn-new-ticket')).toBeNull();
+  });
+
+  it('should NOT display "Novo Chamado" button when user is TECHNICIAN', async () => {
+    authServiceSpy.isRequester.mockReturnValue(false);
+    authServiceSpy.canViewAssets.mockReturnValue(true);
+    authServiceSpy.canViewDashboard.mockReturnValue(true);
+
+    const techFixture = TestBed.createComponent(Home);
+    techFixture.detectChanges();
+    await techFixture.whenStable();
+
+    const compiled = techFixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.btn-new-ticket')).toBeNull();
+  });
+
+  it('should display "Prazo", "Dentro do prazo", and "Prazo ultrapassado" for REQUESTER without showing "SLA"', async () => {
+    authServiceSpy.isRequester.mockReturnValue(true);
+    authServiceSpy.canViewAssets.mockReturnValue(false);
+    authServiceSpy.canViewDashboard.mockReturnValue(false);
+
+    const reqFixture = TestBed.createComponent(Home);
+    reqFixture.detectChanges();
+    await reqFixture.whenStable();
+
+    const compiled = reqFixture.nativeElement as HTMLElement;
+    const headers = Array.from(compiled.querySelectorAll('th')).map((th) => th.textContent?.trim());
+    expect(headers).toContain('Prazo');
+    expect(headers).not.toContain('SLA');
+
+    expect(compiled.textContent).toContain('Dentro do prazo');
+    expect(compiled.textContent).toContain('Prazo ultrapassado');
+    expect(compiled.textContent).not.toContain('SLA');
+    expect(compiled.textContent).not.toContain('Dentro do SLA');
+    expect(compiled.textContent).not.toContain('SLA atrasado');
+  });
+
+  it('should keep "SLA", "Dentro do SLA", and "SLA atrasado" for ADMIN and TECHNICIAN', async () => {
+    // ADMIN
+    authServiceSpy.isRequester.mockReturnValue(false);
+    authServiceSpy.canViewAssets.mockReturnValue(true);
+    authServiceSpy.canViewDashboard.mockReturnValue(true);
+
+    const adminFixture = TestBed.createComponent(Home);
+    adminFixture.detectChanges();
+    await adminFixture.whenStable();
+
+    const adminCompiled = adminFixture.nativeElement as HTMLElement;
+    const adminHeaders = Array.from(adminCompiled.querySelectorAll('th')).map((th) =>
+      th.textContent?.trim(),
+    );
+    expect(adminHeaders).toContain('SLA');
+    expect(adminHeaders).not.toContain('Prazo');
+    expect(adminCompiled.textContent).toContain('Dentro do SLA');
+    expect(adminCompiled.textContent).toContain('SLA atrasado');
+
+    // TECHNICIAN
+    authServiceSpy.isRequester.mockReturnValue(false);
+    authServiceSpy.canViewAssets.mockReturnValue(true);
+    authServiceSpy.canViewDashboard.mockReturnValue(true);
+
+    const techFixture = TestBed.createComponent(Home);
+    techFixture.detectChanges();
+    await techFixture.whenStable();
+
+    const techCompiled = techFixture.nativeElement as HTMLElement;
+    const techHeaders = Array.from(techCompiled.querySelectorAll('th')).map((th) =>
+      th.textContent?.trim(),
+    );
+    expect(techHeaders).toContain('SLA');
+    expect(techHeaders).not.toContain('Prazo');
+    expect(techCompiled.textContent).toContain('Dentro do SLA');
+    expect(techCompiled.textContent).toContain('SLA atrasado');
+  });
+
+  it('should display friendly category names for REQUESTER in the list and hide technical enum names', async () => {
+    authServiceSpy.isRequester.mockReturnValue(true);
+    authServiceSpy.canViewAssets.mockReturnValue(false);
+    authServiceSpy.canViewDashboard.mockReturnValue(false);
+
+    const allCategoryTickets: TicketResponse[] = [
+      ...mockTickets,
+      {
+        ...mockTickets[0],
+        id: 13,
+        title: 'Dúvida sobre férias',
+        category: 'DUVIDA',
+      },
+      {
+        ...mockTickets[0],
+        id: 14,
+        title: 'Solicitação geral',
+        category: 'OUTRO',
+      },
+    ];
+    ticketServiceSpy.getTickets.mockReturnValue(of(allCategoryTickets));
+
+    const reqFixture = TestBed.createComponent(Home);
+    reqFixture.detectChanges();
+    await reqFixture.whenStable();
+
+    const compiled = reqFixture.nativeElement as HTMLElement;
+    const tbodyText = compiled.querySelector('tbody')?.textContent ?? '';
+
+    expect(tbodyText).toContain('Problema no equipamento');
+    expect(tbodyText).toContain('Problema no sistema');
+    expect(tbodyText).toContain('Solicitação de acesso');
+    expect(tbodyText).toContain('Dúvida');
+    expect(tbodyText).toContain('Outro');
+
+    expect(tbodyText).not.toContain('INCIDENTE_EQUIPAMENTO');
+    expect(tbodyText).not.toContain('INCIDENTE_SISTEMA');
+    expect(tbodyText).not.toContain('SOLICITACAO_ACESSO');
+  });
+
+  it('should preserve technical category enum names for ADMIN and TECHNICIAN in the list', async () => {
+    authServiceSpy.isRequester.mockReturnValue(false);
+    authServiceSpy.canViewAssets.mockReturnValue(true);
+    authServiceSpy.canViewDashboard.mockReturnValue(true);
+
+    const adminFixture = TestBed.createComponent(Home);
+    adminFixture.detectChanges();
+    await adminFixture.whenStable();
+
+    const tbodyText = adminFixture.nativeElement.querySelector('tbody')?.textContent ?? '';
+    expect(tbodyText).toContain('INCIDENTE_EQUIPAMENTO');
+    expect(tbodyText).toContain('INCIDENTE_SISTEMA');
+    expect(tbodyText).toContain('SOLICITACAO_ACESSO');
   });
 });
