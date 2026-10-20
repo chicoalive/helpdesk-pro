@@ -1,98 +1,203 @@
-# HelpDesk Pro 🛠️
+# HelpDesk Pro
 
-Um sistema completo de gestão de chamados de TI e ativos corporativos. Desenvolvido para agilizar o suporte técnico através de fluxos automatizados, cálculos de SLA baseados em prioridade e trilhas de auditoria.
+[![CI](https://github.com/chicoalive/helpdesk-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/chicoalive/helpdesk-pro/actions/workflows/ci.yml)
 
-🔗 **[Acessar a Demonstração Online](#)** *(Link será adicionado em breve)*  
-📄 **[Acessar Swagger API](#)** *(Link será adicionado em breve)*  
-📖 **[Ver o Diário de Desenvolvimento (Roadmap completo)](docs/ROADMAP.md)**
+Sistema full stack para gestão de chamados de suporte técnico e inventário de ativos de TI. Conta com controle de acesso por perfil (RBAC), máquina de estados de atendimento, cálculo automático de SLA, trilha de auditoria de alterações, prevenção de chamados duplicados e ambiente completo em Docker Compose. Desenvolvido com **Java 21**, **Spring Boot 4.1.1**, **PostgreSQL** e **Angular 22**.
 
----
-
-## 📸 Interface do Sistema
-
-*(Adicione aqui 3 ou 4 prints das telas principais: Dashboard, Listagem de Chamados, Tela de Detalhes com SLA e a Tela de Novo Chamado)*
+> 📖 O histórico detalhado de engenharia por etapas está disponível em [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
-## 🚀 Funcionalidades Principais
+## Screenshots
 
-* **Abertura e Gestão de Chamados:** Fluxo completo desde a criação até a resolução.
-* **Gestão de Ativos de TI:** Vinculação inteligente de equipamentos em uso aos incidentes.
-* **Controle de SLA (Service Level Agreement):** Cálculo automático de prazos (4h, 24h, 72h) com alertas visuais de atraso.
-* **Auditoria de Alterações:** Rastreabilidade automática de quem alterou status, técnico ou solução, com registro de valor antigo e novo.
-* **Dashboard Interativo:** Indicadores de chamados por status, prioridade e técnico.
-* **Perfis de Acesso (RBAC):** Permissões distintas para Solicitante, Técnico e Administrador.
-* **Upload de Anexos:** Suporte a imagens para evidenciar problemas.
+### Dashboard
+![Dashboard](docs/assets/dashboard.png)
 
----
+### Abertura de chamado
+![Abertura de chamado](docs/assets/novo-chamado.png)
 
-## 🛠️ Stack Tecnológica
+### Atendimento e detalhes
+![Atendimento e detalhes](docs/assets/ticket-details.png)
 
-**Backend:** Java 21 | Spring Boot 3 | Spring Security (JWT) | Hibernate/JPA  
-**Frontend:** Angular 18 | RxJS | HTML/CSS Nativo  
-**Banco de Dados:** PostgreSQL | H2 (Testes)  
-**Infraestrutura:** Docker | Docker Compose  
+### Auditoria
+![Auditoria](docs/assets/auditoria.png)
 
 ---
 
-## ⚙️ Destaques Técnicos
+## Funcionalidades principais
 
-* **Segurança:** Proteção de rotas e visibilidade de componentes baseada no cargo (Role) do usuário logado, processada nativamente no Spring Security e com Guards no Angular.
-* **Prevenção de Duplicidade:** Interceptor e arquitetura isolada para uploads de anexos (multipart/form-data).
-* **Testes Automatizados:** Alta cobertura de testes unitários e de integração validando regras de negócios e endpoints isolados.
-  * Backend: **159 testes** aprovados.
-  * Frontend: **133 testes** aprovados.
+- **Abertura e gestão de chamados:** criação de chamados pelo solicitante com cálculo automático de prioridade por categoria e acompanhamento completo do ciclo de vida.
+- **Gestão de ativos de TI:** cadastro, edição, controle de status (`IN_USE`, `UNDER_MAINTENANCE`, `INACTIVE`, `DISCARDED`) e vínculo obrigatório de equipamento em uso para incidentes de hardware.
+- **Perfis de acesso (`ADMIN`, `TECHNICIAN`, `REQUESTER`):** permissões segregadas no Spring Security e nas rotas/componentes do Angular, com vocabulário amigável para usuários finais e visão técnica para a equipe de suporte.
+- **Controle de SLA automático:** cálculo derivado de prazo de atendimento (`4h` para prioridade `ALTA`, `24h` para `MEDIA` e `72h` para `BAIXA`) com indicador visual de atraso.
+- **Auditoria de alterações:** rastreamento automático de mudanças de técnico atribuído, status e solução técnica (autor, data/hora, valor anterior e novo valor).
+- **Dashboard operacional:** indicadores em tempo real de chamados por status, prioridade, técnico responsável, chamados sem atribuição e ativos em manutenção.
+- **Anexos de evidência:** upload e visualização de imagem (`PNG` ou `JPG/JPEG` de até 2 MB) vinculada ao chamado.
+- **Prevenção de duplicidade:** bloqueio inteligente de chamados ativos repetidos para a mesma categoria crítica ou mesmo equipamento, direcionando o usuário para o chamado já em andamento.
+- **Comprovante de chamado:** layout formatado para impressão direta do protocolo pelo navegador.
+- **Painel de atendimento técnico:** atribuição de técnico, avanço de status e registro de solução técnica diretamente na tela de detalhes, com atualização imediata da auditoria.
 
 ---
 
-## 🐳 Como Executar Localmente
+## Stack tecnológica
 
-### Usando Docker (Recomendado)
+- **Backend:** Java 21, Spring Boot 4.1.1, Spring WebMVC, Spring Data JPA, Bean Validation, Spring Security + JWT (`java-jwt` 4.4.0), Springdoc OpenAPI 3.1.1, Gradle
+- **Frontend:** Angular 22, TypeScript 6, RxJS 7.8, Vitest 5, Node.js 24
+- **Banco de Dados:** PostgreSQL 15
+- **Infraestrutura e CI:** Docker, Docker Compose, Nginx, GitHub Actions
 
-Certifique-se de ter o Docker e o Docker Compose instalados.
+---
+
+## Destaques técnicos
+
+- **Autenticação e autorização com JWT e RBAC:** endpoints e rotas protegidos por papel (`ADMIN`, `TECHNICIAN`, `REQUESTER`) com validação de propriedade dos recursos no domínio.
+- **Máquina de estados estrita:** transições de status validadas no serviço de domínio, exigindo preenchimento de solução técnica antes da resolução ou fechamento.
+- **SLA derivado sem acoplamento de persistência:** prazos e alertas de violação calculados de forma determinística a partir da prioridade e do instante de criação.
+- **Trilha de auditoria consistente:** registros gerados exclusivamente dentro das transações reais de atribuição de técnico, mudança de status e solução.
+- **Docker Compose Full Stack:** build multi-stage para backend (JDK 21 → JRE 21 Alpine) e frontend (Node 24 Alpine → Nginx Alpine), com seed idempotente de dados de demonstração.
+- **Pipeline de CI no GitHub Actions:** execução automatizada da suíte de testes do backend e testes/build do frontend a cada `push` ou `pull_request` na branch `main`.
+- **321 testes automatizados:** cobertura abrangente de regras de negócio, segurança, contratos REST, componentes e serviços.
+
+---
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    Browser["Navegador (Cliente)"]
+    Nginx["Container Frontend (Nginx :80 / Host :4200)"]
+    Angular["Arquivos Estáticos (Angular 22 SPA)"]
+    Backend["Container Backend (Spring Boot 4.1.1 :8080)"]
+    DB[("Container DB (PostgreSQL 15 :5432)")]
+
+    Browser -->|"HTTP GET / (Rotas SPA)"| Nginx
+    Nginx -->|"try_files -> index.html"| Angular
+    Browser -->|"HTTP /api/*"| Nginx
+    Nginx -->|"proxy_pass http://backend:8080/"| Backend
+    Backend -->|"JPA / JDBC"| DB
+```
+
+---
+
+## Máquina de estados
+
+Diagrama baseado exclusivamente nas transições permitidas por `TicketService`:
+
+```mermaid
+stateDiagram-v2
+    [*] --> CRIADO : POST /tickets (REQUESTER)
+
+    CRIADO --> ABERTO : Atribuir técnico ou atualizar status
+    CRIADO --> CANCELADO : Cancelar chamado
+
+    ABERTO --> EM_ATENDIMENTO : Iniciar atendimento
+    ABERTO --> CANCELADO : Cancelar chamado
+
+    EM_ATENDIMENTO --> RESOLVIDO : Registrar solução obrigatória
+
+    RESOLVIDO --> FECHADO : Confirmar fechamento (com solução)
+
+    FECHADO --> [*]
+    CANCELADO --> [*]
+```
+
+---
+
+## Testes e qualidade
+
+- **Backend:** **176 testes aprovados** (testes unitários com JUnit 5 / Mockito e testes de integração com `@SpringBootTest`, `MockMvc` e banco **H2** em memória em modo de compatibilidade PostgreSQL).
+- **Frontend:** **145 testes aprovados** distribuídos em 16 suítes (Vitest + Angular TestBed).
+- **Total:** **321 testes automatizados** passando.
+- **Integração Contínua:** o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) valida automaticamente os testes do backend, os testes unitários do frontend e o build de produção em cada `push` e `pull_request` para `main`.
+
+---
+
+## Como executar
+
+### Usando Docker Compose (Recomendado)
+
+Pré-requisito: **Docker** e **Docker Compose** instalados.
 
 1. Clone o repositório:
 
 ```bash
-git clone https://github.com/seu-usuario/helpdesk-pro.git
+git clone https://github.com/chicoalive/helpdesk-pro.git
+cd helpdesk-pro
 ```
 
-2. Crie o arquivo de variáveis de ambiente:
+2. Crie o arquivo `.env` a partir do modelo `.env.example` e defina uma senha local para o banco em `POSTGRES_PASSWORD`:
 
 ```bash
 cp .env.example .env
-# Preencha as variáveis no arquivo .env se necessário
 ```
 
-3. Suba o banco de dados e a API:
+3. Construa e inicie todos os containers (PostgreSQL + Backend + Frontend/Nginx com dados de demonstração habilitados):
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
-A API estará disponível em `http://localhost:8080`.
+4. Acesse os serviços:
+   - **Frontend (Aplicação Web):** `http://localhost:4200`
+   - **Backend (API REST):** `http://localhost:8080`
+   - **Swagger UI (Documentação OpenAPI):** `http://localhost:8080/swagger-ui/index.html`
 
-### Executando o Frontend (Angular)
-
-1. Acesse a pasta do frontend:
+5. Para encerrar os containers:
 
 ```bash
-cd frontend
+docker compose down
 ```
 
-2. Instale as dependências e inicie o servidor:
+<details>
+<summary><strong>Execução manual para desenvolvimento (Java 21 + Node 24)</strong></summary>
 
-```bash
-npm install
-npm start
-```
+1. Com uma instância PostgreSQL ativa contendo o banco `helpdesk`, inicie o backend na pasta `backend/`:
+   ```bash
+   # Linux / macOS
+   ./gradlew bootRun
 
-O frontend estará disponível em `http://localhost:4200`.
+   # Windows (PowerShell)
+   .\gradlew.bat bootRun
+   ```
+2. Em outro terminal, inicie o servidor de desenvolvimento do Angular na pasta `frontend/`:
+   ```bash
+   npm ci
+   npm start
+   ```
+3. Para executar as suítes de testes localmente:
+   ```bash
+   # Backend (na pasta backend/)
+   .\gradlew.bat test
+
+   # Frontend (na pasta frontend/)
+   npm test -- --watch=false
+   npm run build
+   ```
+</details>
 
 ---
 
-## 🔐 Credenciais para Teste Local
+## Credenciais de demonstração
 
-* **Administrador:** `admin@helpdesk.com` | Senha: `123`
-* **Técnico:** `ana@helpdesk.com` | Senha: `123`
-* **Solicitante:** `carlos@helpdesk.com` | Senha: `123`
+Ao iniciar o ambiente via Docker Compose (`APP_SEED_DEMO_ENABLED=true`), o sistema disponibiliza automaticamente as seguintes contas para avaliação local:
+
+| Perfil | E-mail | Senha |
+| :--- | :--- | :--- |
+| **Administrador (`ADMIN`)** | `admin@helpdesk.com` | `123` |
+| **Técnico (`TECHNICIAN`)** | `ana@helpdesk.com` | `123` |
+| **Solicitante (`REQUESTER`)** | `carlos@helpdesk.com` | `123` |
+
+> ⚠️ *Nota: credenciais exclusivas para ambiente local de demonstração e avaliação técnica.*
+
+---
+
+## Estrutura resumida
+
+```text
+helpdesk-pro/
+├── .github/workflows/   # Pipeline de CI (GitHub Actions - testes e build)
+├── backend/             # API REST Spring Boot 4.1.1 (Java 21, Gradle, JPA, Security/JWT)
+├── frontend/            # SPA Angular 22 + configuração de build Docker e Nginx
+├── docs/                # Histórico de engenharia (ROADMAP.md) e assets de documentação
+└── docker-compose.yml   # Orquestração full stack (PostgreSQL + Backend + Frontend)
+```
