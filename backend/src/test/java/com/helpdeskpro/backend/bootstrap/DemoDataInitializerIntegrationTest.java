@@ -1,6 +1,8 @@
 package com.helpdeskpro.backend.bootstrap;
 
 import com.helpdeskpro.backend.domain.AssetStatus;
+import com.helpdeskpro.backend.domain.User;
+import com.helpdeskpro.backend.domain.UserRole;
 import com.helpdeskpro.backend.domain.enums.TicketPriority;
 import com.helpdeskpro.backend.domain.enums.TicketStatus;
 import com.helpdeskpro.backend.dto.DashboardResponseDTO;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +50,9 @@ class DemoDataInitializerIntegrationTest {
 
     @Autowired
     private DashboardService dashboardService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
@@ -119,5 +125,22 @@ class DemoDataInitializerIntegrationTest {
         assertEquals(assetsAfterFirstRun, assetRepository.count(), "Ativos não devem ser duplicados");
         assertEquals(ticketsAfterFirstRun, ticketRepository.count(), "Chamados não devem ser duplicados");
         assertEquals(auditsAfterFirstRun, ticketAuditLogRepository.count(), "Auditorias não devem ser duplicadas");
+    }
+
+    @Test
+    @DisplayName("Deve restaurar papel e senha das contas de demonstração caso tenham sido alterados (R5)")
+    void deveRestaurarContasDeDemonstracaoSeAlteradas() {
+        demoDataInitializer.seedDemoData();
+
+        User ana = userRepository.findByEmail("ana@helpdesk.com").orElseThrow();
+        ana.setRole(UserRole.REQUESTER);
+        ana.setPassword(passwordEncoder.encode("senha-alterada"));
+        userRepository.save(ana);
+
+        demoDataInitializer.seedDemoData();
+
+        User restoredAna = userRepository.findByEmail("ana@helpdesk.com").orElseThrow();
+        assertEquals(UserRole.TECHNICIAN, restoredAna.getRole());
+        assertTrue(passwordEncoder.matches("123", restoredAna.getPassword()));
     }
 }

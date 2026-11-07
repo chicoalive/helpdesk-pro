@@ -5,6 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.helpdeskpro.backend.domain.User;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +16,19 @@ import java.util.Date;
 @Service
 public class TokenService {
 
-    @Value("${api.security.token.secret:helpdesk-pro-secret-key-for-jwt-token-generation-123456}")
+    @Value("${api.security.token.secret}")
     private String secret;
 
     private static final String ISSUER = "helpdesk-pro";
+
+    @PostConstruct
+    public void validateSecretConfiguration() {
+        if (secret == null || secret.trim().length() < 16) {
+            throw new IllegalStateException(
+                    "A propriedade 'api.security.token.secret' (JWT_SECRET) deve ser configurada com pelo menos 16 caracteres."
+            );
+        }
+    }
 
     public String generateToken(User user) {
         try {

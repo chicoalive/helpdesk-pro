@@ -4,7 +4,6 @@ import com.helpdeskpro.backend.domain.Asset;
 import com.helpdeskpro.backend.domain.AssetStatus;
 import com.helpdeskpro.backend.domain.User;
 import com.helpdeskpro.backend.domain.UserRole;
-import com.helpdeskpro.backend.domain.entities.Ticket;
 import com.helpdeskpro.backend.domain.enums.TicketCategory;
 import com.helpdeskpro.backend.domain.enums.TicketStatus;
 import com.helpdeskpro.backend.dto.TicketAssignTechnicianDTO;
@@ -121,7 +120,22 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private User ensureUser(String name, String email, UserRole role) {
-        return userRepository.findByEmail(email).orElseGet(() -> {
+        return userRepository.findByEmail(email).map(existing -> {
+            boolean updated = false;
+            if (existing.getRole() != role) {
+                existing.setRole(role);
+                updated = true;
+            }
+            if (existing.getPassword() == null || !passwordEncoder.matches(DEFAULT_DEMO_PASSWORD, existing.getPassword())) {
+                existing.setPassword(passwordEncoder.encode(DEFAULT_DEMO_PASSWORD));
+                updated = true;
+            }
+            if (updated) {
+                log.info("Conta de demonstração restaurada para estado íntegro: {} ({})", email, role);
+                return userRepository.save(existing);
+            }
+            return existing;
+        }).orElseGet(() -> {
             User created = userRepository.save(new User(
                     name,
                     email,
