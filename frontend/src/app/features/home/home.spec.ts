@@ -150,6 +150,9 @@ describe('Home', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('#10');
     expect(compiled.textContent).toContain('Problema na impressora');
+    expect(compiled.textContent).toContain('Maria Solicitante');
+    expect(compiled.textContent).toContain('Não atribuído');
+    expect(compiled.textContent).toContain('Ana Técnica');
     expect(compiled.textContent).toContain('INCIDENTE_EQUIPAMENTO');
     expect(compiled.textContent).toContain('MEDIA');
     expect(compiled.textContent).toContain('ABERTO');
@@ -159,6 +162,31 @@ describe('Home', () => {
     const actionButtons = compiled.querySelectorAll('.btn-details');
     expect(actionButtons.length).toBe(3);
     expect(actionButtons[0].textContent).toContain('Detalhes');
+  });
+
+  it('should display Solicitante and Técnico columns for ADMIN/TECHNICIAN and only Técnico for REQUESTER', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const adminHeaders = Array.from(fixture.nativeElement.querySelectorAll('th')).map((th: any) =>
+      th.textContent?.trim(),
+    );
+    expect(adminHeaders).toContain('Solicitante');
+    expect(adminHeaders).toContain('Técnico');
+
+    authServiceSpy.isRequester.mockReturnValue(true);
+    authServiceSpy.canViewAssets.mockReturnValue(false);
+    authServiceSpy.canViewDashboard.mockReturnValue(false);
+
+    const reqFixture = TestBed.createComponent(Home);
+    reqFixture.detectChanges();
+    await reqFixture.whenStable();
+
+    const reqHeaders = Array.from(reqFixture.nativeElement.querySelectorAll('th')).map((th: any) =>
+      th.textContent?.trim(),
+    );
+    expect(reqHeaders).not.toContain('Solicitante');
+    expect(reqHeaders).toContain('Técnico');
   });
 
   it('should filter tickets by searchTerm matching title (case-insensitive)', () => {

@@ -25,8 +25,12 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
+
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -133,6 +137,35 @@ class TicketAttachmentIntegrationTest {
                 .andExpect(jsonPath("$.attachmentName", is("print-erro.png")))
                 .andExpect(jsonPath("$.attachmentContentType", is("image/png")))
                 .andExpect(jsonPath("$.attachmentData").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Listagem de chamados não carrega bytes de attachmentData em memória mas preserva metadados (R4)")
+    void listTickets_DoesNotLoadAttachmentBytes_PreservesMetadata() throws Exception {
+        byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "evidencia-listagem.png",
+                "image/png",
+                pngBytes
+        );
+
+        mockMvc.perform(multipart("/tickets/" + req1Ticket.getId() + "/attachment")
+                        .file(file)
+                        .header("Authorization", "Bearer " + req1Token))
+                .andExpect(status().isOk());
+
+        List<Ticket> allLightweight = ticketRepository.findAll();
+        assertEquals(1, allLightweight.size());
+        assertEquals("evidencia-listagem.png", allLightweight.get(0).getAttachmentName());
+        assertNull(allLightweight.get(0).getAttachmentData());
+
+        mockMvc.perform(get("/tickets")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].hasAttachment", is(true)))
+                .andExpect(jsonPath("$[0].attachmentName", is("evidencia-listagem.png")))
+                .andExpect(jsonPath("$[0].attachmentContentType", is("image/png")));
     }
 
     @Test

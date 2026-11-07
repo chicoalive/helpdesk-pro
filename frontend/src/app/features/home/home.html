@@ -62,6 +62,10 @@
         <tr>
           <th>ID</th>
           <th>Título</th>
+          @if (!isRequester) {
+            <th>Solicitante</th>
+          }
+          <th>Técnico</th>
           <th>Categoria</th>
           <th>Prioridade</th>
           <th>Status</th>
@@ -74,6 +78,10 @@
           <tr>
             <td class="col-id">#{{ ticket.id }}</td>
             <td class="col-title">{{ ticket.title }}</td>
+            @if (!isRequester) {
+              <td class="col-requester">{{ ticket.requesterName }}</td>
+            }
+            <td class="col-technician">{{ ticket.technicianName || 'Não atribuído' }}</td>
             <td>{{ isRequester ? getCategoryLabel(ticket.category) : ticket.category }}</td>
             <td>{{ ticket.priority }}</td>
             <td>{{ ticket.status }}</td>
@@ -94,7 +102,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" class="empty-state">Nenhum chamado encontrado</td>
+            <td [attr.colspan]="isRequester ? 8 : 9" class="empty-state">Nenhum chamado encontrado</td>
           </tr>
         }
       </tbody>

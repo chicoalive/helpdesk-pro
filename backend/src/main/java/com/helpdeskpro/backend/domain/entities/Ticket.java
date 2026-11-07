@@ -5,6 +5,7 @@ import com.helpdeskpro.backend.domain.User;
 import com.helpdeskpro.backend.domain.enums.TicketCategory;
 import com.helpdeskpro.backend.domain.enums.TicketPriority;
 import com.helpdeskpro.backend.domain.enums.TicketStatus;
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -75,6 +76,7 @@ public class Ticket {
     @Column(name = "attachment_content_type")
     private String attachmentContentType;
 
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "attachment_data")
     private byte[] attachmentData;
 
@@ -90,6 +92,28 @@ public class Ticket {
         this.asset = asset;
         this.status = TicketStatus.CRIADO;
         this.technician = null;
+    }
+
+    public Ticket(Long id, String title, String description, String solution,
+                  TicketStatus status, TicketCategory category, TicketPriority priority,
+                  User requester, User technician, Asset asset,
+                  Instant createdAt, Instant updatedAt,
+                  String attachmentName, String attachmentContentType) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.solution = solution;
+        this.status = status;
+        this.category = category;
+        this.priority = priority;
+        this.requester = requester;
+        this.technician = technician;
+        this.asset = asset;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.attachmentName = attachmentName;
+        this.attachmentContentType = attachmentContentType;
+        this.attachmentData = null;
     }
 
     @PrePersist

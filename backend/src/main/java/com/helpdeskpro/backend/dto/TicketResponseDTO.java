@@ -90,7 +90,8 @@ public class TicketResponseDTO {
         dto.setSlaDeadline(slaDeadline);
         dto.setSlaBreached(isSlaBreached(slaDeadline, ticket.getStatus(), now));
 
-        boolean hasAttachment = ticket.getAttachmentData() != null && ticket.getAttachmentData().length > 0;
+        boolean hasAttachment = (ticket.getAttachmentName() != null && !ticket.getAttachmentName().isBlank())
+                || (ticket.getAttachmentData() != null && ticket.getAttachmentData().length > 0);
         dto.setHasAttachment(hasAttachment);
         dto.setAttachmentName(hasAttachment ? ticket.getAttachmentName() : null);
         dto.setAttachmentContentType(hasAttachment ? ticket.getAttachmentContentType() : null);

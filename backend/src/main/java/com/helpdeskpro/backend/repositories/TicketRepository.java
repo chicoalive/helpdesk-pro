@@ -6,6 +6,7 @@ import com.helpdeskpro.backend.domain.enums.TicketStatus;
 import com.helpdeskpro.backend.dto.TechnicianTicketCountDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -16,7 +17,25 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     Optional<Ticket> findFirstByTitleOrderByIdAsc(String title);
 
-    List<Ticket> findByRequesterId(Long requesterId);
+    @Override
+    @Query("select new com.helpdeskpro.backend.domain.entities.Ticket("
+            + "t.id, t.title, t.description, t.solution, t.status, t.category, t.priority, "
+            + "r, tech, a, t.createdAt, t.updatedAt, t.attachmentName, t.attachmentContentType) "
+            + "from Ticket t "
+            + "left join t.requester r "
+            + "left join t.technician tech "
+            + "left join t.asset a")
+    List<Ticket> findAll();
+
+    @Query("select new com.helpdeskpro.backend.domain.entities.Ticket("
+            + "t.id, t.title, t.description, t.solution, t.status, t.category, t.priority, "
+            + "r, tech, a, t.createdAt, t.updatedAt, t.attachmentName, t.attachmentContentType) "
+            + "from Ticket t "
+            + "left join t.requester r "
+            + "left join t.technician tech "
+            + "left join t.asset a "
+            + "where r.id = :requesterId")
+    List<Ticket> findByRequesterId(@Param("requesterId") Long requesterId);
 
     Optional<Ticket> findFirstByRequesterIdAndCategoryAndStatusInOrderByIdAsc(
             Long requesterId,
