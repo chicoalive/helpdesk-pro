@@ -30,7 +30,7 @@ Registro técnico da evolução incremental do projeto **HelpDesk Pro**, organiz
 - Vínculo obrigatório de ativo com status `IN_USE` para a categoria `INCIDENTE_EQUIPAMENTO`.
 - Atribuição de técnico (`PATCH /tickets/{id}/technician`) com validação de perfil `TECHNICIAN` e transição automática `CRIADO → ABERTO`.
 - Máquina de estados (`PATCH /tickets/{id}/status`):
-  - `CRIADO → ABERTO → EM_ATENDIMENTO → RESOLVIDO → FECHADO`
+  - `CRIADO → ABERTO → EM_ATENDIMENTO ↔ AGUARDANDO_USUARIO → RESOLVIDO → FECHADO`
   - Cancelamento (`CANCELADO`) permitido apenas a partir de `CRIADO` ou `ABERTO`.
   - Campo `solution` obrigatório para transição a `RESOLVIDO` e `FECHADO`.
 
@@ -73,9 +73,16 @@ Registro técnico da evolução incremental do projeto **HelpDesk Pro**, organiz
 - **Prevenção de chamados duplicados:** bloqueio de múltiplos chamados ativos do mesmo `REQUESTER` para `INCIDENTE_SISTEMA`, `SOLICITACAO_ACESSO` e para o mesmo equipamento em `INCIDENTE_EQUIPAMENTO`, com atalho direto na interface para acompanhar o chamado existente.
 - **Atendimento pela interface (`/tickets/:id`):** controles operacionais para `ADMIN` e `TECHNICIAN` atribuírem técnico, alterarem status e registrarem solução técnica com atualização imediata da trilha de auditoria.
 
-## Etapa 12 — Unificação Docker Full Stack, Seed de Demonstração, CI e Documentação (EM ANDAMENTO)
-- *Status atual: em andamento (documentação e screenshots validados localmente; aguardando revisão final, commit e push).*
+## Etapa 12 — Unificação Docker Full Stack, Seed de Demonstração, CI e Documentação
 - **Docker Compose Full Stack:** adição do `frontend/Dockerfile` multi-stage (`node:24-alpine` + `nginx:alpine`) e `frontend/nginx.conf` (roteamento SPA + proxy reverso `/api/` para `http://backend:8080/`).
 - **Seed idempotente de demonstração (`DemoDataInitializer`):** ativado explicitamente via `APP_SEED_DEMO_ENABLED=true` no Docker Compose, populando usuários, ativos (`IN_USE` e `UNDER_MAINTENANCE`), chamados em diferentes estados/prioridades, histórico de auditoria e anexo PNG de exemplo sem duplicar registros em reinicializações.
-- **Integração Contínua (CI):** workflow `.github/workflows/ci.yml` executando os **176 testes do backend** (Java 21 + Gradle) e **145 testes + build de produção do frontend** (Node 24 + Angular 22), totalizando **321 testes automatizados**.
-- **Documentação e Vitrine Técnica:** reestruturação do `README.md` com arquitetura full stack, máquina de estados Mermaid real, credenciais de demonstração e screenshots reais em `docs/assets/`, separando o histórico evolutivo em `docs/ROADMAP.md`.
+- **Integração Contínua (CI):** workflow `.github/workflows/ci.yml` executando os testes do backend e frontend + build de produção.
+- **Documentação e Vitrine Técnica:** reestruturação do `README.md` com arquitetura full stack, máquina de estados Mermaid real, credenciais de demonstração e screenshots reais em `docs/assets/`.
+
+## Etapa 12-R — Revisão Funcional Ponta a Ponta, Segurança e Preparação Pós-MVP (R0–R6)
+- **R1 — Segurança e cadastro de usuários:** validação com Bean Validation (`@Valid`, `@NotBlank`, `@Email`, `@NotNull`) em `POST /users`, normalização de e-mail, tratamento de duplicidade com `400 Bad Request` e handler de integridade (`409 Conflict`), e codificação BCrypt incondicional (removendo bypass por prefixo `"$2"`).
+- **R2 — Fluxo completo dos chamados:** formulário de envio de comentários em `/tickets/:id`, botão de 1 clique **"Assumir chamado"** para `TECHNICIAN` (sem depender de `GET /users` nem digitar ID numérico), botão **"Cancelar chamado"** para `REQUESTER` em chamados `CRIADO` ou `ABERTO`, suporte completo ao status `AGUARDANDO_USUARIO` (`EM_ATENDIMENTO ↔ AGUARDANDO_USUARIO → RESOLVIDO`) e filtro dinâmico de transições válidas no seletor de status.
+- **R3 — Administração de usuários e autenticação:** tela administrativa `/users` (`UserManagement`) para listagem, filtro e cadastro de solicitantes e técnicos, visível apenas para `ADMIN`, proteção de rotas com `authGuard` e `userAdminGuard` e verificação de expiração (`exp`) do token JWT no cliente.
+- **R4 — Usabilidade e desempenho:** consultas leves em `TicketRepository` (`findAll` e `findByRequesterId`) que não carregam os bytes (`byte[] attachmentData`) de anexos durante listagens, inclusão do claim `name` no JWT para exibição do nome do usuário no cabeçalho e colunas de **Solicitante** e **Técnico** na tabela principal de chamados.
+- **R5 — Preparação segura para demonstração online:** remoção de fallback inseguro de segredo JWT no código-fonte e criação de `application-prod.properties` exigindo `JWT_SECRET`, configuração de CORS restrito a origens permitidas (`CORS_ALLOWED_ORIGINS`) em `SecurityConfig` e restauração automática de integridade das contas de demonstração em `DemoDataInitializer`.
+- **R6 — Homologação e documentação:** validação completa com **351 testes automatizados** (**185 no backend** + **166 no frontend**) e atualização de `README.md` e `docs/ROADMAP.md`.
