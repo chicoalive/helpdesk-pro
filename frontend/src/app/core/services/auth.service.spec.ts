@@ -64,8 +64,9 @@ describe('AuthService', () => {
     };
 
     it('should decode ADMIN role correctly and return Portuguese label', () => {
-      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'admin@helpdesk.com', role: 'ADMIN' }));
+      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'admin@helpdesk.com', role: 'ADMIN', id: 1 }));
       expect(service.getUserRole()).toBe('ADMIN');
+      expect(service.getUserId()).toBe(1);
       expect(service.isAdmin()).toBe(true);
       expect(service.isTechnician()).toBe(false);
       expect(service.isRequester()).toBe(false);
@@ -77,8 +78,9 @@ describe('AuthService', () => {
     });
 
     it('should decode TECHNICIAN role correctly and return Portuguese label', () => {
-      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'ana@helpdesk.com', role: 'TECHNICIAN' }));
+      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'ana@helpdesk.com', role: 'TECHNICIAN', id: 2 }));
       expect(service.getUserRole()).toBe('TECHNICIAN');
+      expect(service.getUserId()).toBe(2);
       expect(service.isAdmin()).toBe(false);
       expect(service.isTechnician()).toBe(true);
       expect(service.isRequester()).toBe(false);
@@ -90,8 +92,9 @@ describe('AuthService', () => {
     });
 
     it('should decode REQUESTER role correctly and return Portuguese label', () => {
-      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'carlos@helpdesk.com', role: 'REQUESTER' }));
+      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'carlos@helpdesk.com', role: 'REQUESTER', id: 3 }));
       expect(service.getUserRole()).toBe('REQUESTER');
+      expect(service.getUserId()).toBe(3);
       expect(service.isAdmin()).toBe(false);
       expect(service.isTechnician()).toBe(false);
       expect(service.isRequester()).toBe(true);
@@ -107,8 +110,25 @@ describe('AuthService', () => {
       expect(service.getUserIdentity()).toBe('Carlos Solicitante');
     });
 
+    it('should return false and clear token when JWT exp is in the past', () => {
+      const expiredExp = Math.floor(Date.now() / 1000) - 60;
+      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'admin@helpdesk.com', role: 'ADMIN', exp: expiredExp }));
+
+      expect(service.isAuthenticated()).toBe(false);
+      expect(localStorage.getItem('helpdesk_token')).toBeNull();
+    });
+
+    it('should return true when JWT exp is in the future', () => {
+      const futureExp = Math.floor(Date.now() / 1000) + 3600;
+      localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'admin@helpdesk.com', role: 'ADMIN', exp: futureExp }));
+
+      expect(service.isAuthenticated()).toBe(true);
+      expect(localStorage.getItem('helpdesk_token')).not.toBeNull();
+    });
+
     it('should return null and false when no token is present', () => {
       expect(service.getUserRole()).toBeNull();
+      expect(service.getUserId()).toBeNull();
       expect(service.isAdmin()).toBe(false);
       expect(service.isTechnician()).toBe(false);
       expect(service.isRequester()).toBe(false);

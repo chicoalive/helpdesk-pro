@@ -62,14 +62,17 @@ describe('Header', () => {
     expect(chamadosLink.getAttribute('href')).toBe('/home');
   });
 
-  it('should display "Ativos de TI", user email, role "Administrador", and Sair button for ADMIN', async () => {
+  it('should display "Ativos de TI", "Usuários", user email, role "Administrador", and Sair button for ADMIN', async () => {
     await setupComponent('ADMIN', 'admin@helpdesk.com', 'Administrador', true);
 
     const compiled = fixture.nativeElement as HTMLElement;
     const navLinks = Array.from(compiled.querySelectorAll('.nav-link'));
     const assetsLink = navLinks.find((el) => el.textContent?.includes('Ativos de TI'));
+    const usersLink = navLinks.find((el) => el.textContent?.includes('Usuários'));
     expect(assetsLink).toBeTruthy();
     expect(assetsLink?.getAttribute('href')).toBe('/assets');
+    expect(usersLink).toBeTruthy();
+    expect(usersLink?.getAttribute('href')).toBe('/users');
 
     expect(compiled.querySelector('.user-identity')?.textContent).toBe('admin@helpdesk.com');
     expect(compiled.querySelector('.role-badge')?.textContent).toBe('Administrador');
@@ -77,14 +80,16 @@ describe('Header', () => {
     expect(compiled.querySelector('.btn-logout')).toBeTruthy();
   });
 
-  it('should display "Ativos de TI", user email, role "Técnico", and Sair button for TECHNICIAN', async () => {
+  it('should display "Ativos de TI", HIDE "Usuários", display user email, role "Técnico", and Sair button for TECHNICIAN', async () => {
     await setupComponent('TECHNICIAN', 'ana@helpdesk.com', 'Técnico', true);
 
     const compiled = fixture.nativeElement as HTMLElement;
     const navLinks = Array.from(compiled.querySelectorAll('.nav-link'));
     const assetsLink = navLinks.find((el) => el.textContent?.includes('Ativos de TI'));
+    const usersLink = navLinks.find((el) => el.textContent?.includes('Usuários'));
     expect(assetsLink).toBeTruthy();
     expect(assetsLink?.getAttribute('href')).toBe('/assets');
+    expect(usersLink).toBeUndefined();
 
     expect(compiled.querySelector('.user-identity')?.textContent).toBe('ana@helpdesk.com');
     expect(compiled.querySelector('.role-badge')?.textContent).toBe('Técnico');
@@ -92,13 +97,15 @@ describe('Header', () => {
     expect(compiled.querySelector('.btn-logout')).toBeTruthy();
   });
 
-  it('should HIDE "Ativos de TI", display user email, role "Solicitante", and Sair button for REQUESTER', async () => {
+  it('should HIDE "Ativos de TI" and "Usuários", display user email, role "Solicitante", and Sair button for REQUESTER', async () => {
     await setupComponent('REQUESTER', 'carlos@helpdesk.com', 'Solicitante', false);
 
     const compiled = fixture.nativeElement as HTMLElement;
     const navLinks = Array.from(compiled.querySelectorAll('.nav-link'));
     const assetsLink = navLinks.find((el) => el.textContent?.includes('Ativos de TI'));
+    const usersLink = navLinks.find((el) => el.textContent?.includes('Usuários'));
     expect(assetsLink).toBeUndefined();
+    expect(usersLink).toBeUndefined();
 
     expect(compiled.querySelector('.user-identity')?.textContent).toBe('carlos@helpdesk.com');
     expect(compiled.querySelector('.role-badge')?.textContent).toBe('Solicitante');

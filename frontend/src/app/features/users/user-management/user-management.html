@@ -1,0 +1,150 @@
+<div class="user-management-container">
+  <header class="page-header">
+    <div class="header-titles">
+      <a routerLink="/home" class="btn-nav-link">&larr; Voltar para Chamados</a>
+      <h1 class="page-title">Gestão de Usuários</h1>
+    </div>
+  </header>
+
+  @if (errorMessage) {
+    <div class="alert alert-error">{{ errorMessage }}</div>
+  }
+
+  @if (isAdmin) {
+    <div class="management-grid">
+      <section class="card form-card">
+        <h2 class="card-title">Cadastrar Novo Usuário</h2>
+        <p class="card-subtitle">
+          Crie contas para funcionários solicitantes ou técnicos de suporte.
+        </p>
+
+        @if (formErrorMessage) {
+          <div class="alert alert-error">{{ formErrorMessage }}</div>
+        }
+
+        @if (successMessage) {
+          <div class="alert alert-success">{{ successMessage }}</div>
+        }
+
+        <form [formGroup]="userForm" (ngSubmit)="onSubmit()" novalidate class="user-form">
+          <div class="form-group">
+            <label for="userNameInput">Nome completo *</label>
+            <input
+              id="userNameInput"
+              type="text"
+              formControlName="name"
+              placeholder="Ex.: Mariana Souza"
+              class="form-control"
+            />
+            @if (name?.invalid && (name?.dirty || name?.touched)) {
+              <small class="field-error">O nome é obrigatório.</small>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="userEmailInput">E-mail corporativo *</label>
+            <input
+              id="userEmailInput"
+              type="email"
+              formControlName="email"
+              placeholder="Ex.: mariana@helpdesk.com"
+              class="form-control"
+            />
+            @if (email?.invalid && (email?.dirty || email?.touched)) {
+              <small class="field-error">Informe um e-mail válido.</small>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="userPasswordInput">Senha inicial *</label>
+            <input
+              id="userPasswordInput"
+              type="password"
+              formControlName="password"
+              placeholder="Mínimo de 3 caracteres"
+              class="form-control"
+            />
+            @if (password?.invalid && (password?.dirty || password?.touched)) {
+              <small class="field-error">A senha inicial é obrigatória (mínimo de 3 caracteres).</small>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="userRoleSelect">Perfil de acesso *</label>
+            <select id="userRoleSelect" formControlName="role" class="form-control">
+              <option value="REQUESTER">Solicitante (Funcionário)</option>
+              <option value="TECHNICIAN">Técnico de TI</option>
+            </select>
+          </div>
+
+          <button
+            id="btnCreateUser"
+            type="submit"
+            class="btn-primary btn-full"
+            [disabled]="isSaving"
+          >
+            {{ isSaving ? 'Cadastrando...' : 'Cadastrar usuário' }}
+          </button>
+        </form>
+      </section>
+
+      <section class="list-section">
+        <div class="filters-bar">
+          <div class="filter-group search-group">
+            <input
+              id="userSearchInput"
+              type="text"
+              [(ngModel)]="searchTerm"
+              placeholder="Pesquisar por nome ou e-mail..."
+              class="form-control"
+            />
+          </div>
+
+          <div class="filter-group">
+            <select id="userRoleFilter" [(ngModel)]="roleFilter" class="form-control">
+              <option value="">Todos os perfis</option>
+              <option value="ADMIN">Administrador</option>
+              <option value="TECHNICIAN">Técnico</option>
+              <option value="REQUESTER">Solicitante</option>
+            </select>
+          </div>
+        </div>
+
+        @if (isLoading) {
+          <div class="alert alert-info">Carregando usuários...</div>
+        }
+
+        <div class="table-container">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Perfil</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of filteredUsers; track user.id) {
+                <tr>
+                  <td class="col-id">#{{ user.id }}</td>
+                  <td class="col-name">{{ user.name }}</td>
+                  <td class="col-email">{{ user.email }}</td>
+                  <td>
+                    <span class="role-badge" [attr.data-role]="user.role">
+                      {{ getRoleLabel(user.role) }}
+                    </span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="empty-state">Nenhum usuário encontrado.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+</div>

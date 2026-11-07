@@ -19,6 +19,10 @@ export class Header {
     return this.authService.getUserRole() ?? '';
   }
 
+  get isAdmin(): boolean {
+    return this.userRole === 'ADMIN';
+  }
+
   get roleLabel(): string {
     return this.authService.getRoleLabel();
   }

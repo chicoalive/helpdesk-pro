@@ -29,7 +29,16 @@ export class AuthService {
     try {
       const parts = token.split('.');
       if (parts.length < 2) return null;
-      return JSON.parse(atob(parts[1]));
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      if (payload && typeof payload.exp === 'number') {
+        const nowInSeconds = Math.floor(Date.now() / 1000);
+        if (payload.exp <= nowInSeconds) {
+          localStorage.removeItem('helpdesk_token');
+          return null;
+        }
+      }
+      return payload;
     } catch {
       return null;
     }
@@ -92,7 +101,16 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    if (!token) {
+      return false;
+    }
+
+    if (token.includes('.')) {
+      return this.getUserPayload() !== null;
+    }
+
+    return true;
   }
 
   logout(): void {

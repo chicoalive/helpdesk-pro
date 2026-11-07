@@ -14,6 +14,11 @@
             Ativos de TI
           </a>
         }
+        @if (isAdmin) {
+          <a routerLink="/users" routerLinkActive="active" class="nav-link">
+            Usuários
+          </a>
+        }
       </nav>
     </div>
 

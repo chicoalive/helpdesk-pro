@@ -67,6 +67,13 @@ export interface UserSummary {
   role: UserRole;
 }
 
+export interface UserCreateRequest {
+  name: string;
+  email: string;
+  password: string;
+  role: 'REQUESTER' | 'TECHNICIAN';
+}
+
 export interface TicketCommentRequest {
   content: string;
 }
