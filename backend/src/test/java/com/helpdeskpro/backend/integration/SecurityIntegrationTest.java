@@ -153,6 +153,42 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    @DisplayName("TECHNICIAN tentando listar /users completo deve retornar 403 Forbidden")
+    void technicianListingUsers_Returns403() throws Exception {
+        mockMvc.perform(get("/users")
+                        .header("Authorization", "Bearer " + tech1Token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)));
+    }
+
+    @Test
+    @DisplayName("REQUESTER e TECHNICIAN tentando criar usuário (POST /users) devem receber 403 Forbidden")
+    void nonAdminCreatingUser_Returns403() throws Exception {
+        String payload = """
+                {
+                    "name": "Tentativa",
+                    "email": "tentativa@sec.com",
+                    "password": "123",
+                    "role": "ADMIN"
+                }
+                """;
+
+        mockMvc.perform(post("/users")
+                        .header("Authorization", "Bearer " + req1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)));
+
+        mockMvc.perform(post("/users")
+                        .header("Authorization", "Bearer " + tech1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status", is(403)));
+    }
+
+    @Test
     @DisplayName("REQUESTER tentando criar ativo (POST /assets) deve retornar 403 Forbidden")
     void requesterCreatingAsset_Returns403() throws Exception {
         AssetRequestDTO dto = new AssetRequestDTO("NOTE-SEC", "Notebook", "Dell", AssetStatus.IN_USE);

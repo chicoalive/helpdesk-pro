@@ -266,4 +266,94 @@ class ValidationIntegrationTest {
                     .andExpect(jsonPath("$.validationErrors.content", is("O conteúdo do comentário é obrigatório")));
         }
     }
+
+    @Nested
+    @DisplayName("Validação e Segurança do Cadastro de Usuários (POST /users - Etapa 12-R1)")
+    class UserValidationTests {
+
+        @Test
+        @DisplayName("POST /users - JSON vazio deve retornar 400 com erros de name, email, password e role")
+        void createUser_EmptyJson_Returns400WithFieldErrors() throws Exception {
+            mockMvc.perform(post("/users")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)))
+                    .andExpect(jsonPath("$.error", is("Bad Request")))
+                    .andExpect(jsonPath("$.message", is("Erro de validação nos campos informados")))
+                    .andExpect(jsonPath("$.validationErrors.name", is("O nome é obrigatório")))
+                    .andExpect(jsonPath("$.validationErrors.email", is("O e-mail é obrigatório")))
+                    .andExpect(jsonPath("$.validationErrors.password", is("A senha é obrigatória")))
+                    .andExpect(jsonPath("$.validationErrors.role", is("O perfil do usuário é obrigatório")));
+        }
+
+        @Test
+        @DisplayName("POST /users - Formato de e-mail inválido deve retornar 400")
+        void createUser_InvalidEmail_Returns400() throws Exception {
+            mockMvc.perform(post("/users")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                        "name": "Novo Usuario",
+                                        "email": "email-invalido",
+                                        "password": "123",
+                                        "role": "REQUESTER"
+                                    }
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)))
+                    .andExpect(jsonPath("$.validationErrors.email", is("Formato de e-mail inválido")));
+        }
+
+        @Test
+        @DisplayName("POST /users - E-mail duplicado deve retornar 400 Bad Request amigável (nunca 500)")
+        void createUser_DuplicateEmail_Returns400() throws Exception {
+            mockMvc.perform(post("/users")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                        "name": "Outro Solicitante",
+                                        "email": "REQ@val.com",
+                                        "password": "123",
+                                        "role": "REQUESTER"
+                                    }
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)))
+                    .andExpect(jsonPath("$.message", is("Já existe um usuário cadastrado com este e-mail.")));
+        }
+
+        @Test
+        @DisplayName("POST /users - Senha iniciada com '$2' deve ser codificada com BCrypt e permitir login")
+        void createUser_PasswordStartingWithDollar2_IsProperlyEncodedAndAuthenticates() throws Exception {
+            mockMvc.perform(post("/users")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                        "name": "Usuario Senha Especial",
+                                        "email": "especial@val.com",
+                                        "password": "$2senhaForte",
+                                        "role": "TECHNICIAN"
+                                    }
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.email", is("especial@val.com")))
+                    .andExpect(jsonPath("$.password").doesNotExist());
+
+            mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                        "email": "especial@val.com",
+                                        "password": "$2senhaForte"
+                                    }
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.token", notNullValue()));
+        }
+    }
 }
