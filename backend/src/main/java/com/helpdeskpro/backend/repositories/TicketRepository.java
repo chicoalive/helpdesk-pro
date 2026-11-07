@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
+    boolean existsByTitle(String title);
+
+    Optional<Ticket> findFirstByTitleOrderByIdAsc(String title);
+
     List<Ticket> findByRequesterId(Long requesterId);
 
     Optional<Ticket> findFirstByRequesterIdAndCategoryAndStatusInOrderByIdAsc(
