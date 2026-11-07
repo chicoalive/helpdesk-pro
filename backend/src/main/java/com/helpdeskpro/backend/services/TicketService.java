@@ -303,15 +303,22 @@ public class TicketService {
         }
 
         if (newStatus == TicketStatus.EM_ATENDIMENTO) {
-            if (currentStatus != TicketStatus.ABERTO) {
-                throw new BusinessRuleException("Transição inválida: o status EM_ATENDIMENTO só pode ser definido a partir do status ABERTO.");
+            if (currentStatus != TicketStatus.ABERTO && currentStatus != TicketStatus.AGUARDANDO_USUARIO) {
+                throw new BusinessRuleException("Transição inválida: o status EM_ATENDIMENTO só pode ser definido a partir do status ABERTO ou AGUARDANDO_USUARIO.");
+            }
+            return;
+        }
+
+        if (newStatus == TicketStatus.AGUARDANDO_USUARIO) {
+            if (currentStatus != TicketStatus.EM_ATENDIMENTO) {
+                throw new BusinessRuleException("Transição inválida: o status AGUARDANDO_USUARIO só pode ser definido a partir do status EM_ATENDIMENTO.");
             }
             return;
         }
 
         if (newStatus == TicketStatus.RESOLVIDO) {
-            if (currentStatus != TicketStatus.EM_ATENDIMENTO) {
-                throw new BusinessRuleException("Transição inválida: o status RESOLVIDO só pode ser definido a partir do status EM_ATENDIMENTO.");
+            if (currentStatus != TicketStatus.EM_ATENDIMENTO && currentStatus != TicketStatus.AGUARDANDO_USUARIO) {
+                throw new BusinessRuleException("Transição inválida: o status RESOLVIDO só pode ser definido a partir do status EM_ATENDIMENTO ou AGUARDANDO_USUARIO.");
             }
             if (solution == null || solution.trim().isEmpty()) {
                 throw new BusinessRuleException("Para transitar o status para RESOLVIDO, o campo solução é obrigatório.");

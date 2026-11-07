@@ -348,4 +348,29 @@ describe('TicketService', () => {
 
     req.flush(updatedTicket);
   });
+
+  it('should send POST request to /api/tickets/{ticketId}/comments on createComment', () => {
+    localStorage.setItem('helpdesk_token', 'meu-jwt-de-teste');
+
+    const createdComment: TicketCommentResponse = {
+      id: 3,
+      content: 'Novo comentário enviado pela interface',
+      createdAt: '2026-10-16T19:00:00Z',
+      ticketId: 10,
+      authorId: 1,
+      authorName: 'Carlos Solicitante',
+      authorRole: 'REQUESTER',
+    };
+
+    service.createComment(10, 'Novo comentário enviado pela interface').subscribe((res) => {
+      expect(res).toEqual(createdComment);
+    });
+
+    const req = httpMock.expectOne('/api/tickets/10/comments');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer meu-jwt-de-teste');
+    expect(req.request.body).toEqual({ content: 'Novo comentário enviado pela interface' });
+
+    req.flush(createdComment);
+  });
 });

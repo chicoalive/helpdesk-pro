@@ -41,5 +41,19 @@
 [data-role="TECHNICIAN"]{background:#e0f2fe;color:#0369a1}
 .comment-date{margin-left:auto}
 .empty-comments{text-align:center;padding:2rem 1rem;color:#64748b;font-style:italic;margin:0}
+.management-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem}
+.management-group{display:flex;flex-direction:column;gap:.5rem}
+.management-full{grid-column:1/-1}
+.management-row,.requester-cancel-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.requester-cancel-row{justify-content:space-between}
+.management-input{padding:.55rem .75rem;border:1px solid #cbd5e1;border-radius:.375rem;font-size:.9rem;color:#0f172a;background:#fff;flex:1;min-width:160px}
+.management-textarea{width:100%;resize:vertical;font-family:inherit}
+.btn-action{padding:.55rem 1rem;font-size:.875rem;font-weight:600;color:#fff;background:#0078d4;border:none;border-radius:.375rem;cursor:pointer;white-space:nowrap}
+.btn-action:hover:not(:disabled){background:#106ebe}
+.btn-action:disabled{opacity:.6;cursor:not-allowed}
+.btn-cancel-ticket{background:#dc2626}
+.btn-cancel-ticket:hover:not(:disabled){background:#b91c1c}
+.comment-form-block{margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:.65rem}
+.comment-form-actions{display:flex;justify-content:flex-end}
 @media (max-width:640px){.ticket-detail-container{padding:1.25rem 1rem}.ticket-header{flex-direction:column;align-items:flex-start}.comment-date{margin-left:0;width:100%}}
 @media print{:host{background:#fff;min-height:auto}.ticket-detail-container{padding:0}.print-brand{display:block}.detail-card{box-shadow:none;margin:0}}

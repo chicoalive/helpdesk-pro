@@ -160,6 +160,31 @@
       }
     </article>
 
+    @if (isRequester && (canRequesterCancel || operationErrorMessage || operationSuccessMessage)) {
+      <section class="comments-card requester-actions-card no-print">
+        @if (operationErrorMessage) {
+          <div class="alert alert-error">{{ operationErrorMessage }}</div>
+        }
+        @if (operationSuccessMessage) {
+          <div class="alert alert-info">{{ operationSuccessMessage }}</div>
+        }
+        @if (canRequesterCancel) {
+          <div class="requester-cancel-row">
+            <span class="info-value">Deseja cancelar esta solicitação antes do início do atendimento?</span>
+            <button
+              type="button"
+              id="btnCancelTicket"
+              class="btn-action btn-cancel-ticket"
+              [disabled]="isUpdatingStatus"
+              (click)="onCancelByRequester()"
+            >
+              {{ isUpdatingStatus ? 'Cancelando...' : 'Cancelar chamado' }}
+            </button>
+          </div>
+        }
+      </section>
+    }
+
     @if (canManageTicket) {
       <section class="comments-card management-card no-print">
         <header class="comments-header">
@@ -179,36 +204,48 @@
             <label for="assignTechnicianControl" class="info-label">Atribuir Técnico</label>
             @if (ticket.technicianId === null) {
               <div class="management-row">
-                @if (technicians.length > 0) {
-                  <select
-                    id="assignTechnicianSelect"
-                    [(ngModel)]="selectedTechnicianId"
-                    class="management-input"
+                @if (isTechnician && currentUserId) {
+                  <button
+                    type="button"
+                    id="btnAssumeTicket"
+                    class="btn-action"
+                    [disabled]="isAssigningTechnician"
+                    (click)="onAssumeTicket()"
                   >
-                    <option [ngValue]="null">Selecione um técnico</option>
-                    @for (tech of technicians; track tech.id) {
-                      <option [ngValue]="tech.id">{{ tech.name }} (#{{ tech.id }})</option>
-                    }
-                  </select>
+                    {{ isAssigningTechnician ? 'Assumindo...' : 'Assumir chamado' }}
+                  </button>
                 } @else {
-                  <input
-                    id="assignTechnicianInput"
-                    type="number"
-                    min="1"
-                    [(ngModel)]="selectedTechnicianId"
-                    placeholder="ID do técnico"
-                    class="management-input"
-                  />
+                  @if (technicians.length > 0) {
+                    <select
+                      id="assignTechnicianSelect"
+                      [(ngModel)]="selectedTechnicianId"
+                      class="management-input"
+                    >
+                      <option [ngValue]="null">Selecione um técnico</option>
+                      @for (tech of technicians; track tech.id) {
+                        <option [ngValue]="tech.id">{{ tech.name }} (#{{ tech.id }})</option>
+                      }
+                    </select>
+                  } @else {
+                    <input
+                      id="assignTechnicianInput"
+                      type="number"
+                      min="1"
+                      [(ngModel)]="selectedTechnicianId"
+                      placeholder="ID do técnico"
+                      class="management-input"
+                    />
+                  }
+                  <button
+                    type="button"
+                    id="btnAssignTechnician"
+                    class="btn-action"
+                    [disabled]="!selectedTechnicianId || isAssigningTechnician"
+                    (click)="onAssignTechnician()"
+                  >
+                    {{ isAssigningTechnician ? 'Atribuindo...' : 'Atribuir técnico' }}
+                  </button>
                 }
-                <button
-                  type="button"
-                  id="btnAssignTechnician"
-                  class="btn-action"
-                  [disabled]="!selectedTechnicianId || isAssigningTechnician"
-                  (click)="onAssignTechnician()"
-                >
-                  {{ isAssigningTechnician ? 'Atribuindo...' : 'Atribuir técnico' }}
-                </button>
               </div>
             } @else {
               <p class="text-muted">
@@ -223,9 +260,10 @@
               <select
                 id="statusSelect"
                 [(ngModel)]="selectedStatus"
+                [disabled]="isTerminalStatus || isUpdatingStatus"
                 class="management-input"
               >
-                @for (st of statusOptions; track st) {
+                @for (st of availableStatusOptions; track st) {
                   <option [value]="st">{{ st }}</option>
                 }
               </select>
@@ -233,7 +271,7 @@
                 type="button"
                 id="btnUpdateStatus"
                 class="btn-action"
-                [disabled]="isUpdatingStatus"
+                [disabled]="isTerminalStatus || isUpdatingStatus"
                 (click)="onUpdateStatus()"
               >
                 {{ isUpdatingStatus ? 'Salvando...' : 'Atualizar status' }}
@@ -288,6 +326,31 @@
             <p class="empty-comments">Nenhum comentário registrado.</p>
           }
         }
+      </div>
+
+      <div class="comment-form-block">
+        <label for="newCommentInput" class="info-label">Novo comentário</label>
+        @if (commentSubmitErrorMessage) {
+          <div class="alert alert-error">{{ commentSubmitErrorMessage }}</div>
+        }
+        <textarea
+          id="newCommentInput"
+          rows="3"
+          [(ngModel)]="newCommentContent"
+          placeholder="Escreva uma mensagem ou atualização sobre este chamado..."
+          class="management-input management-textarea"
+        ></textarea>
+        <div class="comment-form-actions">
+          <button
+            type="button"
+            id="btnSubmitComment"
+            class="btn-action"
+            [disabled]="isSubmittingComment || !newCommentContent.trim()"
+            (click)="onAddComment()"
+          >
+            {{ isSubmittingComment ? 'Enviando...' : 'Adicionar comentário' }}
+          </button>
+        </div>
       </div>
     </section>
 

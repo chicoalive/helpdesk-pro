@@ -31,6 +31,7 @@ export class TicketDetail implements OnInit, OnDestroy {
   selectedTechnicianId: number | null = null;
   selectedStatus: TicketStatus = 'CRIADO';
   solutionText = '';
+  newCommentContent = '';
 
   readonly statusOptions: TicketStatus[] = [
     'CRIADO',
@@ -48,9 +49,11 @@ export class TicketDetail implements OnInit, OnDestroy {
   isLoadingAttachment = false;
   isAssigningTechnician = false;
   isUpdatingStatus = false;
+  isSubmittingComment = false;
 
   errorMessage: string | null = null;
   commentsErrorMessage: string | null = null;
+  commentSubmitErrorMessage: string | null = null;
   auditErrorMessage: string | null = null;
   attachmentErrorMessage: string | null = null;
   operationErrorMessage: string | null = null;
@@ -107,6 +110,59 @@ export class TicketDetail implements OnInit, OnDestroy {
     return !this.authService.canViewDashboard();
   }
 
+  get isTechnician(): boolean {
+    if (typeof this.authService.isTechnician === 'function') {
+      return this.authService.isTechnician();
+    }
+    return false;
+  }
+
+  get currentUserId(): number | null {
+    if (typeof this.authService.getUserId === 'function') {
+      return this.authService.getUserId();
+    }
+    return null;
+  }
+
+  get canRequesterCancel(): boolean {
+    return (
+      this.isRequester &&
+      !!this.ticket &&
+      (this.ticket.status === 'CRIADO' || this.ticket.status === 'ABERTO')
+    );
+  }
+
+  get isTerminalStatus(): boolean {
+    return (
+      !!this.ticket &&
+      (this.ticket.status === 'FECHADO' || this.ticket.status === 'CANCELADO')
+    );
+  }
+
+  get availableStatusOptions(): TicketStatus[] {
+    if (!this.ticket) {
+      return this.statusOptions;
+    }
+    switch (this.ticket.status) {
+      case 'CRIADO':
+        return ['CRIADO', 'ABERTO', 'CANCELADO'];
+      case 'ABERTO':
+        return ['ABERTO', 'EM_ATENDIMENTO', 'CANCELADO'];
+      case 'EM_ATENDIMENTO':
+        return ['EM_ATENDIMENTO', 'AGUARDANDO_USUARIO', 'RESOLVIDO'];
+      case 'AGUARDANDO_USUARIO':
+        return ['AGUARDANDO_USUARIO', 'EM_ATENDIMENTO', 'RESOLVIDO'];
+      case 'RESOLVIDO':
+        return ['RESOLVIDO', 'FECHADO'];
+      case 'FECHADO':
+        return ['FECHADO'];
+      case 'CANCELADO':
+        return ['CANCELADO'];
+      default:
+        return this.statusOptions;
+    }
+  }
+
   get shouldShowSolutionField(): boolean {
     if (!this.ticket) {
       return false;
@@ -142,7 +198,11 @@ export class TicketDetail implements OnInit, OnDestroy {
   }
 
   loadTechnicians(): void {
-    if (!this.canManageTicket || typeof this.ticketService.getTechnicians !== 'function') {
+    if (
+      !this.canManageTicket ||
+      this.isTechnician ||
+      typeof this.ticketService.getTechnicians !== 'function'
+    ) {
       return;
     }
 
@@ -153,6 +213,59 @@ export class TicketDetail implements OnInit, OnDestroy {
       },
       error: () => {
         this.technicians = [];
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  onAssumeTicket(): void {
+    const userId = this.currentUserId;
+    if (!this.ticket || !userId || this.isAssigningTechnician) {
+      return;
+    }
+    this.selectedTechnicianId = userId;
+    this.onAssignTechnician();
+  }
+
+  onCancelByRequester(): void {
+    if (!this.ticket || !this.canRequesterCancel || this.isUpdatingStatus) {
+      return;
+    }
+    this.selectedStatus = 'CANCELADO';
+    this.onUpdateStatus();
+  }
+
+  onAddComment(): void {
+    if (
+      !this.ticket ||
+      this.isSubmittingComment ||
+      typeof this.ticketService.createComment !== 'function'
+    ) {
+      return;
+    }
+
+    const content = this.newCommentContent.trim();
+    if (!content) {
+      this.commentSubmitErrorMessage = 'O conteúdo do comentário é obrigatório.';
+      return;
+    }
+
+    this.isSubmittingComment = true;
+    this.commentSubmitErrorMessage = null;
+
+    this.ticketService.createComment(this.ticket.id, content).subscribe({
+      next: (createdComment) => {
+        this.comments = [...this.comments, createdComment];
+        this.newCommentContent = '';
+        this.isSubmittingComment = false;
+        this.cdr.markForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSubmittingComment = false;
+        this.commentSubmitErrorMessage =
+          error.error?.validationErrors?.content ||
+          error.error?.message ||
+          'Não foi possível enviar o comentário.';
         this.cdr.markForCheck();
       },
     });

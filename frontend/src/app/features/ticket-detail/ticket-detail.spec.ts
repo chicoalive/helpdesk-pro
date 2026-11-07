@@ -16,6 +16,7 @@ describe('TicketDetail', () => {
   let ticketServiceSpy: {
     getTicketById: ReturnType<typeof vi.fn>;
     getComments: ReturnType<typeof vi.fn>;
+    createComment: ReturnType<typeof vi.fn>;
     getAttachment: ReturnType<typeof vi.fn>;
     assignTechnician: ReturnType<typeof vi.fn>;
     updateTicketStatus: ReturnType<typeof vi.fn>;
@@ -25,6 +26,8 @@ describe('TicketDetail', () => {
   let authServiceSpy: {
     canViewDashboard: ReturnType<typeof vi.fn>;
     isRequester: ReturnType<typeof vi.fn>;
+    isTechnician: ReturnType<typeof vi.fn>;
+    getUserId: ReturnType<typeof vi.fn>;
   };
 
   const mockAuditEntries: TicketAuditResponse[] = [
@@ -111,6 +114,17 @@ describe('TicketDetail', () => {
     ticketServiceSpy = {
       getTicketById: vi.fn().mockReturnValue(of(mockTicket)),
       getComments: vi.fn().mockReturnValue(of(mockComments)),
+      createComment: vi.fn().mockReturnValue(
+        of({
+          id: 99,
+          content: 'Comentário adicionado no teste',
+          createdAt: '2026-09-25T12:00:00Z',
+          ticketId: 10,
+          authorId: 1,
+          authorName: 'Carlos Solicitante',
+          authorRole: 'REQUESTER',
+        }),
+      ),
       getAttachment: vi
         .fn()
         .mockReturnValue(of(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }))),
@@ -133,6 +147,8 @@ describe('TicketDetail', () => {
     authServiceSpy = {
       canViewDashboard: vi.fn().mockReturnValue(canViewAudit),
       isRequester: vi.fn().mockReturnValue(!canViewAudit),
+      isTechnician: vi.fn().mockReturnValue(false),
+      getUserId: vi.fn().mockReturnValue(2),
     };
 
     await TestBed.configureTestingModule({
@@ -707,5 +723,111 @@ describe('TicketDetail', () => {
       'Para transitar o status para RESOLVIDO, o campo solução é obrigatório.',
     );
     expect(compiled.textContent).toContain('Falha no teclado');
+  });
+
+  it('should create a new comment via form and append it to the comments list', async () => {
+    await setupTestBed('10', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.newCommentContent = '  Comentário adicionado no teste  ';
+    component.onAddComment();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(ticketServiceSpy.createComment).toHaveBeenCalledWith(
+      10,
+      'Comentário adicionado no teste',
+    );
+    expect(component.comments.length).toBe(3);
+    expect(component.newCommentContent).toBe('');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Comentário adicionado no teste',
+    );
+  });
+
+  it('should allow TECHNICIAN to assume an unassigned ticket with one click without numeric input', async () => {
+    await setupTestBed('10', true);
+    authServiceSpy.isTechnician.mockReturnValue(true);
+    authServiceSpy.getUserId.mockReturnValue(2);
+
+    const unassignedTicket: TicketResponse = {
+      ...mockTicket,
+      status: 'CRIADO',
+      technicianId: null,
+      technicianName: null,
+      technicianEmail: null,
+    };
+    const assignedTicket: TicketResponse = {
+      ...unassignedTicket,
+      status: 'ABERTO',
+      technicianId: 2,
+      technicianName: 'Ana Tecnica',
+      technicianEmail: 'ana@helpdesk.com',
+    };
+    ticketServiceSpy.getTicketById.mockReturnValue(of(unassignedTicket));
+    ticketServiceSpy.assignTechnician.mockReturnValue(of(assignedTicket));
+
+    component.loadTicket(10);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const assumeBtn = (fixture.nativeElement as HTMLElement).querySelector(
+      '#btnAssumeTicket',
+    ) as HTMLButtonElement;
+    expect(assumeBtn).toBeTruthy();
+    expect(assumeBtn.textContent).toContain('Assumir chamado');
+
+    assumeBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10, 2);
+    expect(component.ticket?.status).toBe('ABERTO');
+  });
+
+  it('should allow REQUESTER to cancel their own ticket when status is CRIADO or ABERTO', async () => {
+    await setupTestBed('10', false);
+    const openTicket: TicketResponse = {
+      ...mockTicket,
+      status: 'ABERTO',
+      solution: null,
+    };
+    const cancelledTicket: TicketResponse = {
+      ...openTicket,
+      status: 'CANCELADO',
+    };
+    ticketServiceSpy.getTicketById.mockReturnValue(of(openTicket));
+    ticketServiceSpy.updateTicketStatus.mockReturnValue(of(cancelledTicket));
+
+    component.loadTicket(10);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const cancelBtn = (fixture.nativeElement as HTMLElement).querySelector(
+      '#btnCancelTicket',
+    ) as HTMLButtonElement;
+    expect(cancelBtn).toBeTruthy();
+
+    cancelBtn.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(ticketServiceSpy.updateTicketStatus).toHaveBeenCalledWith(10, 'CANCELADO', null);
+    expect(component.ticket?.status).toBe('CANCELADO');
+  });
+
+  it('should filter availableStatusOptions according to current ticket status', async () => {
+    await setupTestBed('10', true);
+    component.ticket = { ...mockTicket, status: 'EM_ATENDIMENTO' };
+    expect(component.availableStatusOptions).toEqual([
+      'EM_ATENDIMENTO',
+      'AGUARDANDO_USUARIO',
+      'RESOLVIDO',
+    ]);
+
+    component.ticket = { ...mockTicket, status: 'FECHADO' };
+    expect(component.availableStatusOptions).toEqual(['FECHADO']);
+    expect(component.isTerminalStatus).toBe(true);
   });
 });

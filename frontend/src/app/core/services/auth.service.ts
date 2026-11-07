@@ -40,6 +40,15 @@ export class AuthService {
     return payload?.role ?? null;
   }
 
+  getUserId(): number | null {
+    const payload = this.getUserPayload();
+    if (!payload || payload.id === undefined || payload.id === null) {
+      return null;
+    }
+    const parsed = Number(payload.id);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
   getUserIdentity(): string | null {
     const payload = this.getUserPayload();
     if (!payload) return null;

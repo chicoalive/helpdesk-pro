@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import {
   TicketAssignTechnicianRequest,
+  TicketCommentRequest,
   TicketCommentResponse,
   TicketRequest,
   TicketResponse,
@@ -77,6 +78,17 @@ export class TicketService {
     return this.http.get<TicketCommentResponse[]>(`${this.apiUrl}/${ticketId}/comments`, {
       headers: this.getAuthHeaders(),
     });
+  }
+
+  createComment(ticketId: number, content: string): Observable<TicketCommentResponse> {
+    const payload: TicketCommentRequest = { content };
+    return this.http.post<TicketCommentResponse>(
+      `${this.apiUrl}/${ticketId}/comments`,
+      payload,
+      {
+        headers: this.getAuthHeaders(),
+      },
+    );
   }
 
   uploadAttachment(ticketId: number, file: File): Observable<TicketResponse> {

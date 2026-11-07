@@ -67,6 +67,10 @@ export interface UserSummary {
   role: UserRole;
 }
 
+export interface TicketCommentRequest {
+  content: string;
+}
+
 export interface TicketCommentResponse {
   id: number;
   content: string;

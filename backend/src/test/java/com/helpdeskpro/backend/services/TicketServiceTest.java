@@ -523,4 +523,36 @@ class TicketServiceTest {
         assertEquals(88L, ex.getExistingTicketId());
         verify(ticketRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Deve permitir transitar de EM_ATENDIMENTO para AGUARDANDO_USUARIO e retomar para EM_ATENDIMENTO ou RESOLVIDO")
+    void updateTicketStatus_AguardandoUsuarioFlow_Success() {
+        Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
+        ticket.setStatus(TicketStatus.EM_ATENDIMENTO);
+        ticket.setTechnician(technician);
+
+        when(securityUtils.getCurrentUser()).thenReturn(technician);
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TicketResponseDTO waitingResponse = ticketService.updateTicketStatus(
+                1L,
+                new TicketStatusUpdateDTO(TicketStatus.AGUARDANDO_USUARIO, null)
+        );
+        assertEquals(TicketStatus.AGUARDANDO_USUARIO, waitingResponse.getStatus());
+
+        TicketResponseDTO resumedResponse = ticketService.updateTicketStatus(
+                1L,
+                new TicketStatusUpdateDTO(TicketStatus.EM_ATENDIMENTO, null)
+        );
+        assertEquals(TicketStatus.EM_ATENDIMENTO, resumedResponse.getStatus());
+
+        ticket.setStatus(TicketStatus.AGUARDANDO_USUARIO);
+        TicketResponseDTO resolvedFromWaiting = ticketService.updateTicketStatus(
+                1L,
+                new TicketStatusUpdateDTO(TicketStatus.RESOLVIDO, "Resolvido após retorno do usuário")
+        );
+        assertEquals(TicketStatus.RESOLVIDO, resolvedFromWaiting.getStatus());
+        assertEquals("Resolvido após retorno do usuário", resolvedFromWaiting.getSolution());
+    }
 }
