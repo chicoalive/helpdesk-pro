@@ -26,6 +26,8 @@ describe('UserService', () => {
   });
 
   it('should fetch users via GET /api/users', () => {
+    // Prepare a fake token
+    localStorage.setItem('helpdesk_token', 'test-token');
     const mockUsers: UserSummary[] = [
       { id: 1, name: 'Admin TI', email: 'admin@helpdesk.com', role: 'ADMIN' },
       { id: 2, name: 'Ana Técnica', email: 'ana@helpdesk.com', role: 'TECHNICIAN' },
@@ -37,6 +39,8 @@ describe('UserService', () => {
 
     const req = httpMock.expectOne('/api/users');
     expect(req.request.method).toBe('GET');
+    // Verify Authorization header is sent
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
     req.flush(mockUsers);
   });
 
@@ -62,6 +66,8 @@ describe('UserService', () => {
     const req = httpMock.expectOne('/api/users');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(payload);
+    // Verify Authorization header is sent
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
     req.flush(createdUser);
   });
 });

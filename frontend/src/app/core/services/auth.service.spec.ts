@@ -59,7 +59,9 @@ describe('AuthService', () => {
   describe('role helpers and session', () => {
     const createTokenWithClaims = (claims: Record<string, unknown>) => {
       const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-      const payload = btoa(JSON.stringify(claims));
+      const bytes = new TextEncoder().encode(JSON.stringify(claims));
+      const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
+      const payload = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       return `${header}.${payload}.signature`;
     };
 
@@ -108,6 +110,12 @@ describe('AuthService', () => {
     it('should prefer name if present, otherwise fallback to sub/email', () => {
       localStorage.setItem('helpdesk_token', createTokenWithClaims({ sub: 'carlos@helpdesk.com', name: 'Carlos Solicitante', role: 'REQUESTER' }));
       expect(service.getUserIdentity()).toBe('Carlos Solicitante');
+    });
+
+    it.each(['João', 'José', 'Márcia'])('should decode the UTF-8 name %s from the JWT', (name) => {
+      localStorage.setItem('helpdesk_token', createTokenWithClaims({ name, role: 'TECHNICIAN' }));
+
+      expect(service.getUserIdentity()).toBe(name);
     });
 
     it('should return false and clear token when JWT exp is in the past', () => {

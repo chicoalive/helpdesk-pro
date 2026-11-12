@@ -30,7 +30,8 @@ export class AuthService {
       const parts = token.split('.');
       if (parts.length < 2) return null;
       const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64));
+      const bytes = Uint8Array.from(atob(base64), (byte) => byte.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
       if (payload && typeof payload.exp === 'number') {
         const nowInSeconds = Math.floor(Date.now() / 1000);
         if (payload.exp <= nowInSeconds) {

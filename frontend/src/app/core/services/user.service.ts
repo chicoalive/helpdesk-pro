@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { UserCreateRequest, UserSummary } from '../models/ticket.model';
 
@@ -11,11 +11,18 @@ export class UserService {
 
   constructor(private readonly http: HttpClient) {}
 
+  private getAuthHeaders(): HttpHeaders {
+    const token = localStorage.getItem('helpdesk_token');
+    return new HttpHeaders({
+      Authorization: `Bearer ${token ?? ''}`
+    });
+  }
+
   getUsers(): Observable<UserSummary[]> {
-    return this.http.get<UserSummary[]>(this.apiUrl);
+    return this.http.get<UserSummary[]>(this.apiUrl, { headers: this.getAuthHeaders() });
   }
 
   createUser(payload: UserCreateRequest): Observable<UserSummary> {
-    return this.http.post<UserSummary>(this.apiUrl, payload);
+    return this.http.post<UserSummary>(this.apiUrl, payload, { headers: this.getAuthHeaders() });
   }
 }
