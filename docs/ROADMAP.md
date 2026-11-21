@@ -2,6 +2,18 @@
 
 Registro técnico da evolução incremental do projeto **HelpDesk Pro**, organizado por etapas de implementação e validação.
 
+## Estado atual — Etapa 14
+
+As Etapas **14.1A (instalação segura)**, **14.1B (gestão de contas e sessões)** e **14.1C (recuperação e redefinição de senhas)** estão implementadas e homologadas. Identidade pública: **Meu Assistente TI**. Suítes completas: **238 backend + 214 frontend**, sem falhas ou testes pulados na validação com PostgreSQL isolado.
+
+O bootstrap administrativo padrão descrito no histórico abaixo foi substituído por provisionamento local seguro; demonstração exige ativação explícita. Flyway V1–V6, auditoria transacional e revogação de sessões compõem a base atual.
+
+- [Homologação e pendências comerciais](HOMOLOGACAO-14.1.md).
+- [Continuidade administrativa e limites da contingência](CONTINUIDADE-ADMINISTRATIVA.md).
+- [Levantamento da Etapa 14.2](PLANO-14.2.md), ainda sem implementação.
+
+A Etapa 15, incluindo publicação externa e empregabilidade, permanece suspensa. Os registros a seguir descrevem a evolução histórica e podem conter comportamentos posteriormente substituídos.
+
 ---
 
 ## Etapa 1 — Estrutura inicial do backend
