@@ -7,74 +7,81 @@
   </header>
 
   @if (errorMessage) {
-    <div class="alert alert-error">{{ errorMessage }}</div>
+    <div class="alert alert-error" role="alert">{{ errorMessage }}</div>
   }
 
   @if (isAdmin) {
+    <p><a routerLink="/password-recoveries" class="btn-nav-link">Solicitações de recuperação de acesso</a></p>
     <div class="management-grid">
       <section class="card form-card">
-        <h2 class="card-title">Cadastrar Novo Usuário</h2>
+        <h2 class="card-title">{{ editingUser ? 'Editar conta' : 'Cadastrar Novo Usuário' }}</h2>
         <p class="card-subtitle">
-          Crie contas para funcionários solicitantes ou técnicos de suporte.
+          {{ editingUser ? 'Altere nome, e-mail ou perfil. Mudanças de e-mail ou perfil encerram as sessões da conta. Se for a sua conta, entre novamente.' : 'Cadastre administradores, técnicos e solicitantes.' }}
         </p>
 
         @if (formErrorMessage) {
-          <div class="alert alert-error">{{ formErrorMessage }}</div>
+          <div class="alert alert-error" role="alert">{{ formErrorMessage }}</div>
         }
 
         @if (successMessage) {
-          <div class="alert alert-success">{{ successMessage }}</div>
+          <div class="alert alert-success" role="status">{{ successMessage }}</div>
         }
 
-        <form [formGroup]="userForm" (ngSubmit)="onSubmit()" novalidate class="user-form">
+        <form [formGroup]="userForm" (ngSubmit)="onSubmit()" novalidate class="user-form" [attr.aria-busy]="isSaving">
+          <fieldset class="user-fields" [disabled]="isSaving">
           <div class="form-group">
             <label for="userNameInput">Nome completo *</label>
             <input
-              id="userNameInput"
+              id="userNameInput" autocomplete="name" maxlength="255" aria-describedby="userNameError" [attr.aria-invalid]="name?.invalid && name?.touched"
               type="text"
               formControlName="name"
               placeholder="Ex.: Mariana Souza"
               class="form-control"
             />
             @if (name?.invalid && (name?.dirty || name?.touched)) {
-              <small class="field-error">O nome é obrigatório.</small>
+              <small id="userNameError" class="field-error">Informe um nome de 2 a 255 caracteres.</small>
             }
           </div>
 
           <div class="form-group">
             <label for="userEmailInput">E-mail corporativo *</label>
             <input
-              id="userEmailInput"
+              id="userEmailInput" autocomplete="email" maxlength="255" aria-describedby="userEmailError" [attr.aria-invalid]="email?.invalid && email?.touched"
               type="email"
               formControlName="email"
-              placeholder="Ex.: mariana@helpdesk.com"
+              placeholder="nome@empresa.com"
               class="form-control"
             />
             @if (email?.invalid && (email?.dirty || email?.touched)) {
-              <small class="field-error">Informe um e-mail válido.</small>
+              <small id="userEmailError" class="field-error">Informe um e-mail válido.</small>
             }
           </div>
 
+          @if (!editingUser) {
           <div class="form-group">
             <label for="userPasswordInput">Senha inicial *</label>
             <input
-              id="userPasswordInput"
+              id="userPasswordInput" autocomplete="new-password" aria-describedby="userPasswordHelp userPasswordError" [attr.aria-invalid]="password?.invalid && password?.touched"
               type="password"
               formControlName="password"
-              placeholder="Mínimo de 3 caracteres"
+              placeholder="Mínimo de 12 caracteres"
               class="form-control"
             />
+            <small id="userPasswordHelp" class="field-help">De 12 caracteres a 72 bytes. A senha é preservada exatamente como digitada.</small>
             @if (password?.invalid && (password?.dirty || password?.touched)) {
-              <small class="field-error">A senha inicial é obrigatória (mínimo de 3 caracteres).</small>
+              <small id="userPasswordError" class="field-error">Use pelo menos 12 caracteres e no máximo 72 bytes em UTF-8.</small>
             }
           </div>
+          }
 
           <div class="form-group">
             <label for="userRoleSelect">Perfil de acesso *</label>
-            <select id="userRoleSelect" formControlName="role" class="form-control">
-              <option value="REQUESTER">Solicitante (Funcionário)</option>
-              <option value="TECHNICIAN">Técnico de TI</option>
+            <select id="userRoleSelect" formControlName="role" aria-describedby="userRoleError" class="form-control">
+              <option value="ADMIN">Administrador</option>
+              <option value="REQUESTER">Solicitante</option>
+              <option value="TECHNICIAN">Técnico</option>
             </select>
+            @if (role?.invalid && role?.touched) { <small id="userRoleError" class="field-error">Selecione um perfil válido.</small> }
           </div>
 
           <button
@@ -83,8 +90,12 @@
             class="btn-primary btn-full"
             [disabled]="isSaving"
           >
-            {{ isSaving ? 'Cadastrando...' : 'Cadastrar usuário' }}
+            {{ isSaving ? 'Salvando...' : (editingUser ? 'Salvar alterações' : 'Cadastrar usuário') }}
           </button>
+          @if (editingUser) {
+            <button type="button" class="btn-secondary" (click)="cancelEdit()">Cancelar edição</button>
+          }
+          </fieldset>
         </form>
       </section>
 
@@ -92,7 +103,7 @@
         <div class="filters-bar">
           <div class="filter-group search-group">
             <input
-              id="userSearchInput"
+              id="userSearchInput" aria-label="Pesquisar por nome ou e-mail"
               type="text"
               [(ngModel)]="searchTerm"
               placeholder="Pesquisar por nome ou e-mail..."
@@ -101,15 +112,29 @@
           </div>
 
           <div class="filter-group">
-            <select id="userRoleFilter" [(ngModel)]="roleFilter" class="form-control">
+            <select id="userRoleFilter" aria-label="Filtrar por perfil" [(ngModel)]="roleFilter" class="form-control">
               <option value="">Todos os perfis</option>
               <option value="ADMIN">Administrador</option>
               <option value="TECHNICIAN">Técnico</option>
               <option value="REQUESTER">Solicitante</option>
             </select>
           </div>
+          <div class="filter-group">
+            <select aria-label="Filtrar por estado" [(ngModel)]="stateFilter" class="form-control">
+              <option value="">Todos os estados</option>
+              <option value="active">Ativas</option><option value="inactive">Inativas</option>
+            </select>
+          </div>
         </div>
 
+        @if (pendingDeactivation; as pending) {
+          <section class="alert alert-info" role="alertdialog" aria-modal="false" aria-labelledby="deactivationTitle">
+            <h3 id="deactivationTitle">Desativar {{ pending.name }}?</h3>
+            <p>O acesso será bloqueado e as sessões encerradas. Chamados e histórico serão preservados.</p>
+            <button type="button" class="btn-edit" [disabled]="isSaving" (click)="confirmDeactivation()">Confirmar desativação</button>
+            <button type="button" class="btn-edit" [disabled]="isSaving" (click)="pendingDeactivation = null">Cancelar</button>
+          </section>
+        }
         @if (isLoading) {
           <div class="alert alert-info">Carregando usuários...</div>
         }
@@ -122,6 +147,8 @@
                 <th>Nome</th>
                 <th>E-mail</th>
                 <th>Perfil</th>
+                <th>Estado</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -135,10 +162,18 @@
                       {{ getRoleLabel(user.role) }}
                     </span>
                   </td>
+                  <td><span class="role-badge" [attr.data-active]="user.active !== false">{{ user.active !== false ? 'Ativo' : 'Inativo' }}</span></td>
+                  <td>
+                    <button type="button" class="btn-edit" [disabled]="isSaving || (user.active !== false && !canDeactivate(user))"
+                      [attr.aria-label]="(user.active !== false ? 'Desativar ' : 'Reativar ') + user.name"
+                      (click)="requestStateChange(user)">{{ user.active !== false ? 'Desativar' : 'Reativar' }}</button>
+                    <button type="button" class="btn-edit" [disabled]="isSaving"
+                      [attr.aria-label]="'Editar conta de ' + user.name" (click)="startEdit(user)">Editar</button>
+                  </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="4" class="empty-state">Nenhum usuário encontrado.</td>
+                  <td colspan="6" class="empty-state">Nenhum usuário encontrado.</td>
                 </tr>
               }
             </tbody>

@@ -16,6 +16,7 @@ export class UserManagement implements OnInit {
   users: UserSummary[] = [];
   isLoading = false;
   isSaving = false;
+  editingUser: UserSummary | null = null;
 
   errorMessage: string | null = null;
   formErrorMessage: string | null = null;
@@ -23,23 +24,30 @@ export class UserManagement implements OnInit {
 
   searchTerm = '';
   roleFilter = '';
+  stateFilter = '';
+  pendingDeactivation: UserSummary | null = null;
 
   readonly userForm = new FormGroup({
     name: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required],
+      validators: [Validators.required, Validators.minLength(2), Validators.maxLength(255)],
     }),
     email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.email],
+      validators: [Validators.required, Validators.email, Validators.maxLength(255)],
     }),
     password: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.minLength(3)],
+      validators: [
+        Validators.required,
+        Validators.minLength(12),
+        (control) => new TextEncoder().encode(control.value ?? '').length <= 72
+          ? null : { passwordBytes: true },
+      ],
     }),
-    role: new FormControl<'REQUESTER' | 'TECHNICIAN'>('REQUESTER', {
+    role: new FormControl<UserRole>('REQUESTER', {
       nonNullable: true,
-      validators: [Validators.required],
+      validators: [Validators.required, Validators.pattern(/^(ADMIN|TECHNICIAN|REQUESTER)$/)],
     }),
   });
 
@@ -78,7 +86,7 @@ export class UserManagement implements OnInit {
         user.email.toLowerCase().includes(term);
 
       const matchesRole = !this.roleFilter || user.role === this.roleFilter;
-      return matchesSearch && matchesRole;
+      return matchesSearch && matchesRole && (!this.stateFilter || (user.active !== false) === (this.stateFilter === 'active'));
     });
   }
 
@@ -107,6 +115,7 @@ export class UserManagement implements OnInit {
         this.users = [];
         this.isLoading = false;
         if (error.status === 401) {
+          this.authService.logout();
           this.errorMessage =
             'Sua sessão expirou ou o token é inválido. Por favor, faça login novamente.';
         } else if (error.status === 403) {
@@ -120,9 +129,77 @@ export class UserManagement implements OnInit {
     });
   }
 
-  onSubmit(): void {
+  canDeactivate(user: UserSummary): boolean {
+    return user.id !== this.authService.getUserId();
+  }
+
+  requestStateChange(user: UserSummary): void {
+    if (!this.isAdmin || this.isSaving) return;
+    if (user.active !== false) {
+      if (this.canDeactivate(user)) this.pendingDeactivation = { ...user };
+    } else this.changeState(user, true);
+  }
+
+  confirmDeactivation(): void {
+    if (this.pendingDeactivation) this.changeState(this.pendingDeactivation, false);
+  }
+
+  changeState(user: UserSummary, active: boolean): void {
+    if (!this.isAdmin || this.isSaving || (!active && !this.canDeactivate(user))) return;
+    this.isSaving = true;
     this.formErrorMessage = null;
     this.successMessage = null;
+    this.userService.changeState(user.id, active, user.version ?? 0).subscribe({
+      next: (updated) => {
+        this.isSaving = false;
+        this.pendingDeactivation = null;
+        this.users = this.users.map((item) => item.id === updated.id ? updated : item);
+        if (this.editingUser?.id === updated.id) this.cancelEdit();
+        this.successMessage = active ? 'Conta reativada com sucesso.' : 'Conta desativada. As sessões foram encerradas e o histórico foi preservado.';
+        this.cdr.markForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSaving = false;
+        this.pendingDeactivation = null;
+        if (error.status === 401) { this.authService.logout(); return; }
+        if (error.status === 409) this.loadUsers();
+        this.formErrorMessage = error.error?.message || 'Não foi possível alterar o estado da conta.';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  startEdit(user: UserSummary): void {
+    if (!this.isAdmin || this.isSaving) return;
+    this.editingUser = { ...user };
+    this.userForm.reset({ name: user.name, email: user.email, password: '', role: user.role });
+    this.userForm.controls.password.disable();
+    this.formErrorMessage = null;
+    this.successMessage = null;
+  }
+
+  cancelEdit(): void {
+    if (this.isSaving) return;
+    this.editingUser = null;
+    this.userForm.controls.password.enable();
+    this.userForm.reset({ name: '', email: '', password: '', role: 'REQUESTER' });
+    this.formErrorMessage = null;
+    this.successMessage = null;
+  }
+
+  onSubmit(): void {
+    if (this.isSaving) return;
+    this.formErrorMessage = null;
+    this.successMessage = null;
+    if (!this.isAdmin) {
+      this.formErrorMessage = 'Você não possui permissão para cadastrar usuários.';
+      return;
+    }
+    const values = this.userForm.getRawValue();
+    this.userForm.patchValue({
+      name: values.name.trim(),
+      email: values.email.trim().toLowerCase(),
+    });
 
     if (this.userForm.invalid || this.isSaving) {
       this.userForm.markAllAsTouched();
@@ -132,9 +209,9 @@ export class UserManagement implements OnInit {
     const raw = this.userForm.getRawValue();
     const trimmedName = raw.name.trim();
     const trimmedEmail = raw.email.trim().toLowerCase();
-    const trimmedPassword = raw.password.trim();
+    const password = raw.password;
 
-    if (!trimmedName || !trimmedEmail || !trimmedPassword) {
+    if (!trimmedName || !trimmedEmail || (!this.editingUser && !password.trim())) {
       this.formErrorMessage = 'Preencha todos os campos obrigatórios.';
       return;
     }
@@ -144,26 +221,51 @@ export class UserManagement implements OnInit {
     const payload: UserCreateRequest = {
       name: trimmedName,
       email: trimmedEmail,
-      password: trimmedPassword,
+      password,
       role: raw.role,
     };
 
-    this.userService.createUser(payload).subscribe({
+    const editing = this.editingUser;
+    const sensitiveSelfChange = editing?.id === this.authService.getUserId()
+      && (editing.email !== trimmedEmail || editing.role !== raw.role);
+    const operation = editing
+      ? this.userService.updateUser(editing.id, {
+          name: trimmedName, email: trimmedEmail, role: raw.role, expectedVersion: editing.version ?? 0,
+        })
+      : this.userService.createUser(payload);
+
+    operation.subscribe({
       next: (createdUser) => {
         this.isSaving = false;
-        this.users = [...this.users, createdUser];
+        this.users = editing
+          ? this.users.map((user) => user.id === createdUser.id ? createdUser : user)
+          : [...this.users, createdUser];
+        this.editingUser = null;
+        this.userForm.controls.password.enable();
         this.userForm.reset({
           name: '',
           email: '',
           password: '',
           role: 'REQUESTER',
         });
-        this.successMessage = `Usuário "${createdUser.name}" (${this.getRoleLabel(createdUser.role)}) cadastrado com sucesso!`;
+        this.successMessage = editing
+          ? 'Conta atualizada com sucesso.'
+          : `Usuário "${createdUser.name}" (${this.getRoleLabel(createdUser.role)}) cadastrado com sucesso!`;
+        if (sensitiveSelfChange) this.authService.logout();
         this.cdr.markForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.isSaving = false;
-        const backendMsg = error.error?.message;
+        if (error.status === 401) {
+          this.authService.logout();
+          return;
+        }
+        if (editing && error.status === 409) this.loadUsers();
+        const validationErrors = error.error?.validationErrors;
+        const details = validationErrors && typeof validationErrors === 'object'
+          ? Object.values(validationErrors).filter((value) => typeof value === 'string').join(' ')
+          : '';
+        const backendMsg = details || error.error?.message;
         if (typeof backendMsg === 'string' && backendMsg.trim().length > 0) {
           this.formErrorMessage = backendMsg;
         } else if (error.status === 400 || error.status === 409) {

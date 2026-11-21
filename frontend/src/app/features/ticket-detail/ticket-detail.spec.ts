@@ -524,7 +524,7 @@ describe('TicketDetail', () => {
     const printBtn = compiled.querySelector('.btn-print') as HTMLButtonElement;
     expect(printBtn).toBeTruthy();
     expect(printBtn.textContent).toContain('Imprimir comprovante');
-    expect(compiled.querySelector('.print-brand')?.textContent).toContain('HelpDeskPro');
+    expect(compiled.querySelector('.print-brand')?.textContent).toContain('Meu Assistente TI');
 
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     const originalTicketSnapshot = { ...component.ticket };
@@ -829,5 +829,27 @@ describe('TicketDetail', () => {
     component.ticket = { ...mockTicket, status: 'FECHADO' };
     expect(component.availableStatusOptions).toEqual(['FECHADO']);
     expect(component.isTerminalStatus).toBe(true);
+  });
+
+  it('offers reassignment to an administrator when the assigned technician is inactive',async()=>{
+    await setupTestBed();
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,technicianActive:false}));
+    component.loadTicket(10);
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#btnAssignTechnician')).not.toBeNull();
+    authServiceSpy.isTechnician.mockReturnValue(true);
+    component.loadTicket(10);
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#btnAssignTechnician')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain(mockTicket.technicianName);
+  });
+
+  it('allows an administrator to reassign after the former technician changes role',async()=>{
+    await setupTestBed();
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,technicianActive:true,technicianAssignable:false}));
+    component.loadTicket(10); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#btnAssignTechnician')).not.toBeNull();
   });
 });

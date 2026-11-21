@@ -1,0 +1,20 @@
+import {TestBed,ComponentFixture} from '@angular/core/testing';
+import {provideRouter} from '@angular/router';
+import {of,throwError,Subject} from 'rxjs';
+import {HttpErrorResponse} from '@angular/common/http';
+import {vi} from 'vitest';
+import {PasswordRecoveryAdmin} from './password-recovery-admin';
+import {PasswordRecoveryService,RecoveryRequest} from '../../../core/services/password-recovery.service';
+import {AuthService} from '../../../core/services/auth.service';
+describe('Administrative recovery',()=>{
+ let component:PasswordRecoveryAdmin;let fixture:ComponentFixture<PasswordRecoveryAdmin>;
+ const row={id:1,userId:8,name:'Pessoa Teste',email:'user@empresa.test',role:'REQUESTER',active:true,status:'PENDING',requestedAt:'2026-11-21T15:00:00Z',decidedAt:null,expiresAt:null,approvedById:null,version:0};
+ let service:{list:ReturnType<typeof vi.fn>;approve:ReturnType<typeof vi.fn>;decide:ReturnType<typeof vi.fn>};let auth:{logout:ReturnType<typeof vi.fn>};
+ beforeEach(async()=>{service={list:vi.fn().mockReturnValue(of([row])),approve:vi.fn(),decide:vi.fn()};auth={logout:vi.fn()};await TestBed.configureTestingModule({imports:[PasswordRecoveryAdmin],providers:[provideRouter([]),{provide:PasswordRecoveryService,useValue:service},{provide:AuthService,useValue:auth}]}).compileComponents();fixture=TestBed.createComponent(PasswordRecoveryAdmin);component=fixture.componentInstance;fixture.detectChanges();});
+ it('loads pending requests and filters state',()=>{expect(component.filtered.length).toBe(1);component.filter='USED';expect(component.filtered.length).toBe(0);});
+ it('requires explicit identity verification',()=>{component.select(row);component.approve();expect(service.approve).not.toHaveBeenCalled();});
+ it('shows authorization once and clears it when leaving',()=>{component.select(row);component.identityVerified=true;service.approve.mockReturnValue(of({requestId:1,authorization:'A'.repeat(43),expiresAt:'2026-11-21T15:15:00Z'}));component.approve();expect(component.issued?.authorization).toHaveLength(43);component.ngOnDestroy();expect(component.issued).toBeNull();});
+ it('prevents duplicate issuance during processing',()=>{component.select(row);component.identityVerified=true;service.approve.mockReturnValue(new Subject());component.approve();component.approve();expect(service.approve).toHaveBeenCalledTimes(1);});
+ it('rejects requests and refreshes the list',()=>{service.decide.mockReturnValue(of({...row,status:'REJECTED'}));component.decide(row,'reject');expect(service.decide).toHaveBeenCalledWith(row,'reject');expect(service.list).toHaveBeenCalledTimes(2);expect(component.message).toContain('rejeitada');});
+ it('does not preserve authorization after conflict or expired session',()=>{component.select(row);component.identityVerified=true;service.approve.mockReturnValue(throwError(()=>new HttpErrorResponse({status:409,error:{message:'Conflito'}})));component.approve();expect(component.error).toBe('Conflito');expect(component.issued).toBeNull();service.decide.mockReturnValue(throwError(()=>new HttpErrorResponse({status:401})));component.decide(row,'reject');expect(auth.logout).toHaveBeenCalled();});
+});

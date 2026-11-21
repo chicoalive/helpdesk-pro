@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { Login } from './login';
 import { AuthService } from '../../../core/services/auth.service';
@@ -119,5 +119,18 @@ describe('Login', () => {
     component.onSubmit();
 
     expect(authServiceSpy.login).not.toHaveBeenCalled();
+  });
+
+  it('renders an asynchronous login denial and releases the button', async()=>{
+    const response=new Subject<{token:string}>();
+    authServiceSpy.login.mockReturnValue(response);
+    component.loginForm.setValue({email:'inactive@empresa.test',password:'test-only-password'});
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+    await fixture.whenStable();
+    response.error(new Error('Unauthorized'));
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain('Falha ao autenticar');
+    expect(fixture.nativeElement.querySelector('button').disabled).toBe(false);
   });
 });

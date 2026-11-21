@@ -21,7 +21,7 @@
   @if (ticket) {
     <article class="detail-card">
       <div class="print-brand">
-        <strong>HelpDeskPro</strong> — Comprovante de Chamado
+        <strong>Meu Assistente TI</strong> — Comprovante de Chamado
       </div>
 
       <header class="ticket-header">
@@ -201,8 +201,8 @@
 
         <div class="management-grid">
           <div class="management-group">
-            <label for="assignTechnicianControl" class="info-label">Atribuir Técnico</label>
-            @if (ticket.technicianId === null) {
+            <span class="info-label">Atribuir Técnico</span>
+            @if (ticket.technicianId === null || (!isTechnician && canManageTicket && (ticket.technicianActive === false || ticket.technicianAssignable === false))) {
               <div class="management-row">
                 @if (isTechnician && currentUserId) {
                   <button
@@ -217,7 +217,7 @@
                 } @else {
                   @if (technicians.length > 0) {
                     <select
-                      id="assignTechnicianSelect"
+                      id="assignTechnicianSelect" aria-label="Selecionar técnico"
                       [(ngModel)]="selectedTechnicianId"
                       class="management-input"
                     >
@@ -228,7 +228,7 @@
                     </select>
                   } @else {
                     <input
-                      id="assignTechnicianInput"
+                      id="assignTechnicianInput" aria-label="ID do técnico"
                       type="number"
                       min="1"
                       [(ngModel)]="selectedTechnicianId"

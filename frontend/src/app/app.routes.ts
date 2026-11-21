@@ -1,3 +1,5 @@
+import { PasswordRecovery } from './features/auth/password-recovery/password-recovery';
+import { PasswordRecoveryAdmin } from './features/users/password-recovery-admin/password-recovery-admin';
 import { Routes } from '@angular/router';
 import { Login } from './features/auth/login/login';
 import { Home } from './features/home/home';
@@ -13,6 +15,9 @@ import { authGuard, userAdminGuard } from './core/guards/auth.guard';
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: Login },
+  { path: 'password-recovery', component: PasswordRecovery },
+  { path: 'password-reset', component: PasswordRecovery, data: { mode: 'reset' } },
+  { path: 'password-recoveries', component: PasswordRecoveryAdmin, canActivate: [userAdminGuard] },
   { path: 'home', component: Home, canActivate: [authGuard] },
   { path: 'tickets/new', component: TicketForm, canActivate: [ticketCreateGuard] },
   { path: 'tickets/:id', component: TicketDetail, canActivate: [authGuard] },

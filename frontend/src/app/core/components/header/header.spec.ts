@@ -53,7 +53,7 @@ describe('Header', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const brand = compiled.querySelector('.navbar-brand') as HTMLAnchorElement;
-    expect(brand.textContent).toContain('HelpDeskPro');
+    expect(brand.textContent).toContain('Meu Assistente TI');
     expect(brand.getAttribute('href')).toBe('/home');
 
     const navLinks = compiled.querySelectorAll('.nav-link');

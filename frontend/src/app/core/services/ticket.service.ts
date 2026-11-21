@@ -71,7 +71,7 @@ export class TicketService {
       .get<UserSummary[]>('/api/users', {
         headers: this.getAuthHeaders(),
       })
-      .pipe(map((users) => users.filter((user) => user.role === 'TECHNICIAN')));
+      .pipe(map((users) => users.filter((user) => user.role === 'TECHNICIAN' && user.active !== false)));
   }
 
   getComments(ticketId: number): Observable<TicketCommentResponse[]> {

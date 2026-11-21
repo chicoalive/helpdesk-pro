@@ -19,7 +19,7 @@ export class App {
 
   readonly showHeader = computed(() => {
     const url = this.currentUrl();
-    const isLogin = url.startsWith('/login') || url === '/' || url === '';
+    const isLogin = ['/login','/password-recovery','/password-reset'].some(path => url.startsWith(path)) || url === '/' || url === '';
     return this.authService.isAuthenticated() && !isLogin;
   });
 

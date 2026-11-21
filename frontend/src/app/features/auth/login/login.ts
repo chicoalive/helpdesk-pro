@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -28,6 +28,7 @@ export class Login {
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
+    private readonly cdr: ChangeDetectorRef,
   ) {}
 
   get email() {
@@ -58,6 +59,7 @@ export class Login {
       error: () => {
         this.isLoading = false;
         this.errorMessage = 'Falha ao autenticar. Verifique suas credenciais.';
+        this.cdr.markForCheck();
       },
     });
   }

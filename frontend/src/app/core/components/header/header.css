@@ -174,3 +174,9 @@
     display: none !important;
   }
 }
+
+@media (max-width: 768px) {
+  .navbar-left { flex-wrap: wrap; }
+  .navbar-nav { flex-wrap: wrap; }
+  .brand-text { font-size: 1.15rem; }
+}

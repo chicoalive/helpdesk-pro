@@ -70,4 +70,25 @@ describe('UserService', () => {
     expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
     req.flush(createdUser);
   });
+  it('should update an account through PUT with JWT and the expected version', () => {
+    localStorage.setItem('helpdesk_token', 'test-token');
+    const payload = { name: 'Updated', email: 'updated@example.com', role: 'ADMIN' as const, expectedVersion: 4 };
+    const updated = { id: 7, name: payload.name, email: payload.email, role: payload.role, version: 5 };
+    service.updateUser(7, payload).subscribe((user) => expect(user).toEqual(updated));
+    const req = httpMock.expectOne('/api/users/7');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual(payload);
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
+    req.flush(updated);
+  });
+
+  it('sends state and expected version with JWT, without credentials', () => {
+    localStorage.setItem('helpdesk_token','state-test');
+    service.changeState(2,false,7).subscribe();
+    const request=httpMock.expectOne('/api/users/2/state');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer state-test');
+    expect(request.request.body).toEqual({active:false,expectedVersion:7});
+    request.flush({id:2,active:false,version:8});
+  });
 });

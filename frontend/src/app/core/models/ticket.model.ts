@@ -34,6 +34,8 @@ export interface TicketResponse {
   requesterName: string;
   requesterEmail: string;
   technicianId: number | null;
+  technicianActive?: boolean;
+  technicianAssignable?: boolean;
   technicianName: string | null;
   technicianEmail: string | null;
   assetId: number | null;
@@ -61,17 +63,26 @@ export interface TicketStatusUpdateRequest {
 }
 
 export interface UserSummary {
+  active?: boolean;
+  version?: number;
   id: number;
   name: string;
   email: string;
   role: UserRole;
 }
 
+export interface UserUpdateRequest {
+  name: string;
+  email: string;
+  role: UserRole;
+  expectedVersion: number;
+}
+
 export interface UserCreateRequest {
   name: string;
   email: string;
   password: string;
-  role: 'REQUESTER' | 'TECHNICIAN';
+  role: UserRole;
 }
 
 export interface TicketCommentRequest {

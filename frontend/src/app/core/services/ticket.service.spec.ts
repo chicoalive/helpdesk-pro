@@ -373,4 +373,13 @@ describe('TicketService', () => {
 
     req.flush(createdComment);
   });
+
+  it('only offers active technicians for new assignments',()=>{
+    service.getTechnicians().subscribe(users=>expect(users.map(user=>user.id)).toEqual([1]));
+    httpMock.expectOne('/api/users').flush([
+      {id:1,name:'Active',role:'TECHNICIAN',active:true},
+      {id:2,name:'Inactive',role:'TECHNICIAN',active:false},
+      {id:3,name:'Requester',role:'REQUESTER',active:true},
+    ]);
+  });
 });

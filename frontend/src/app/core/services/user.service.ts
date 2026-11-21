@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { UserCreateRequest, UserSummary } from '../models/ticket.model';
+import { UserCreateRequest, UserUpdateRequest, UserSummary } from '../models/ticket.model';
 
 @Injectable({
   providedIn: 'root',
@@ -20,6 +20,15 @@ export class UserService {
 
   getUsers(): Observable<UserSummary[]> {
     return this.http.get<UserSummary[]>(this.apiUrl, { headers: this.getAuthHeaders() });
+  }
+
+  changeState(id: number, active: boolean, expectedVersion: number): Observable<UserSummary> {
+    return this.http.patch<UserSummary>(`${this.apiUrl}/${id}/state`, { active, expectedVersion },
+      { headers: this.getAuthHeaders() });
+  }
+
+  updateUser(id: number, payload: UserUpdateRequest): Observable<UserSummary> {
+    return this.http.put<UserSummary>(this.apiUrl + '/' + id, payload, { headers: this.getAuthHeaders() });
   }
 
   createUser(payload: UserCreateRequest): Observable<UserSummary> {
