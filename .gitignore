@@ -17,3 +17,26 @@ Thumbs.db
 !.env.example
 *.local.properties
 http-client.private.env.json
+
+# Credenciais, backups e artefatos operacionais locais
+*.credential.xml
+*.clixml
+*.dpapi
+*.dump
+*.backup
+*.sql.gz
+*.pem
+*.key
+*.pfx
+*.p12
+*.log
+/backups/
+/credentials/
+/credenciais/
+/work/
+/outputs/
+
+# Fotografias de propostas antigas, preservadas somente no computador
+/docs/assets/cap5.jpg
+/docs/assets/capa.png.jpg
+/frontend/public/images/capa.jpg

@@ -47,6 +47,36 @@ public class User implements UserDetails {
     @Column(name = "role", nullable = false)
     private UserRole role;
 
+    @JsonIgnore
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
+
+    @JsonIgnore
+    @Column(name = "session_version", nullable = false)
+    private long sessionVersion = 0;
+
+    @JsonIgnore
+    @jakarta.persistence.Version
+    @Column(name = "edit_version", nullable = false)
+    private long editVersion = 0;
+
+    public long getEditVersion() { return editVersion; }
+
+    public void revokeSessions() {
+        sessionVersion = Math.incrementExact(sessionVersion);
+    }
+
+    public long getSessionVersion() {
+        return sessionVersion;
+    }
+
+    public void setActive(boolean active) {
+        if (this.active != active) {
+            this.sessionVersion = Math.incrementExact(this.sessionVersion);
+            this.active = active;
+        }
+    }
+
     public User() {
     }
 
@@ -129,6 +159,6 @@ public class User implements UserDetails {
     @JsonIgnore
     @Override
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 }

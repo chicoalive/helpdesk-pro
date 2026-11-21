@@ -51,15 +51,17 @@ public class TicketService {
     private final AssetRepository assetRepository;
     private final TicketAuditLogRepository ticketAuditLogRepository;
     private final SecurityUtils securityUtils;
+    private final jakarta.persistence.EntityManager entityManager;
 
     public TicketService(TicketRepository ticketRepository, UserRepository userRepository,
                          AssetRepository assetRepository, TicketAuditLogRepository ticketAuditLogRepository,
-                         SecurityUtils securityUtils) {
+                         SecurityUtils securityUtils, jakarta.persistence.EntityManager entityManager) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.assetRepository = assetRepository;
         this.ticketAuditLogRepository = ticketAuditLogRepository;
         this.securityUtils = securityUtils;
+        this.entityManager = entityManager;
     }
 
     @Transactional
@@ -193,16 +195,23 @@ public class TicketService {
             throw new AccessDeniedException("Solicitantes não possuem permissão para atribuir técnicos.");
         }
 
-        Ticket ticket = ticketRepository.findById(ticketId)
+        Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
 
-        if (ticket.getTechnician() != null) {
+        entityManager.refresh(ticket);
+        if (ticket.getTechnician() != null && ((ticket.getTechnician().isEnabled()
+                && ticket.getTechnician().getRole() == UserRole.TECHNICIAN)
+                || currentUser.getRole() != UserRole.ADMIN)) {
             throw new BusinessRuleException("O chamado já possui um técnico atribuído e não pode ser reatribuído.");
         }
 
-        User technician = userRepository.findById(dto.getTechnicianId())
+        User technician = userRepository.findByIdForUpdate(dto.getTechnicianId())
                 .orElseThrow(() -> new UserNotFoundException("Técnico não encontrado com o id: " + dto.getTechnicianId()));
 
+        entityManager.refresh(technician);
+        if (!technician.isEnabled()) {
+            throw new BusinessRuleException("Técnicos inativos não podem receber novas atribuições.");
+        }
         if (technician.getRole() != UserRole.TECHNICIAN) {
             throw new BusinessRuleException("Apenas usuários com papel TECHNICIAN podem ser atribuídos como técnico.");
         }

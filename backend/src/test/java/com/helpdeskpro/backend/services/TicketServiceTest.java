@@ -61,6 +61,9 @@ class TicketServiceTest {
     @Mock
     private SecurityUtils securityUtils;
 
+    @Mock
+    private jakarta.persistence.EntityManager entityManager;
+
     @InjectMocks
     private TicketService ticketService;
 
@@ -223,8 +226,8 @@ class TicketServiceTest {
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(2L);
 
         when(securityUtils.getCurrentUser()).thenReturn(technician);
-        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(technician));
+        when(ticketRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ticket));
+        when(userRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(technician));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TicketResponseDTO response = ticketService.assignTechnician(1L, dto);
@@ -253,8 +256,8 @@ class TicketServiceTest {
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(5L);
 
         when(securityUtils.getCurrentUser()).thenReturn(technician);
-        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
-        when(userRepository.findById(5L)).thenReturn(Optional.of(nonTechUser));
+        when(ticketRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ticket));
+        when(userRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(nonTechUser));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
         assertEquals("Apenas usuários com papel TECHNICIAN podem ser atribuídos como técnico.", ex.getMessage());
@@ -268,7 +271,7 @@ class TicketServiceTest {
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(3L);
 
         when(securityUtils.getCurrentUser()).thenReturn(technician);
-        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ticket));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
         assertEquals("O chamado já possui um técnico atribuído e não pode ser reatribuído.", ex.getMessage());

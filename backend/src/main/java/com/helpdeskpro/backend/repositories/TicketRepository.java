@@ -13,6 +13,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from Ticket t where t.id = :id")
+    Optional<Ticket> findByIdForUpdate(@Param("id") Long id);
+
     boolean existsByTitle(String title);
 
     Optional<Ticket> findFirstByTitleOrderByIdAsc(String title);

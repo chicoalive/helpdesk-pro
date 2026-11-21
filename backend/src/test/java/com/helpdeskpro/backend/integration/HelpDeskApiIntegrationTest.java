@@ -121,7 +121,7 @@ class HelpDeskApiIntegrationTest {
                 {
                     "name": "Carlos Solicitante",
                     "email": "carlos@helpdesk.com",
-                    "password": "segredo123",
+                    "password": "segredo123-forte",
                     "role": "REQUESTER"
                 }
                 """;
@@ -139,7 +139,7 @@ class HelpDeskApiIntegrationTest {
                 {
                     "name": "Ana Tecnica",
                     "email": "ana@helpdesk.com",
-                    "password": "segredo456",
+                    "password": "segredo456-forte",
                     "role": "TECHNICIAN"
                 }
                 """;

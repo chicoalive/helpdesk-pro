@@ -25,6 +25,10 @@ public class TicketResponseDTO {
     private String requesterEmail;
 
     private Long technicianId;
+    private boolean technicianActive = true;
+    private boolean technicianAssignable = true;
+    public boolean isTechnicianAssignable() { return technicianAssignable; }
+    public boolean isTechnicianActive() { return technicianActive; }
     private String technicianName;
     private String technicianEmail;
 
@@ -76,6 +80,9 @@ public class TicketResponseDTO {
 
     public static TicketResponseDTO fromEntity(Ticket ticket, Instant now) {
         TicketResponseDTO dto = new TicketResponseDTO();
+        dto.technicianActive = ticket.getTechnician() == null || ticket.getTechnician().isEnabled();
+        dto.technicianAssignable = ticket.getTechnician() == null || (ticket.getTechnician().isEnabled()
+                && ticket.getTechnician().getRole() == com.helpdeskpro.backend.domain.UserRole.TECHNICIAN);
         dto.setId(ticket.getId());
         dto.setTitle(ticket.getTitle());
         dto.setDescription(ticket.getDescription());

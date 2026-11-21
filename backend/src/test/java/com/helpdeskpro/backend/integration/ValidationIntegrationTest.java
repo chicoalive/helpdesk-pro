@@ -298,7 +298,7 @@ class ValidationIntegrationTest {
                                     {
                                         "name": "Novo Usuario",
                                         "email": "email-invalido",
-                                        "password": "123",
+                                        "password": "test-only-strong-password",
                                         "role": "REQUESTER"
                                     }
                                     """))
@@ -317,7 +317,7 @@ class ValidationIntegrationTest {
                                     {
                                         "name": "Outro Solicitante",
                                         "email": "REQ@val.com",
-                                        "password": "123",
+                                        "password": "test-only-strong-password",
                                         "role": "REQUESTER"
                                     }
                                     """))
@@ -336,7 +336,7 @@ class ValidationIntegrationTest {
                                     {
                                         "name": "Usuario Senha Especial",
                                         "email": "especial@val.com",
-                                        "password": "$2senhaForte",
+                                        "password": "$2senhaForte123",
                                         "role": "TECHNICIAN"
                                     }
                                     """))
@@ -349,7 +349,7 @@ class ValidationIntegrationTest {
                             .content("""
                                     {
                                         "email": "especial@val.com",
-                                        "password": "$2senhaForte"
+                                        "password": "$2senhaForte123"
                                     }
                                     """))
                     .andExpect(status().isOk())

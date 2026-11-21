@@ -16,6 +16,12 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(RecoveryRateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleRecoveryRateLimit(RecoveryRateLimitException ex,HttpServletRequest request){
+        return ResponseEntity.status(429).header("Retry-After","60").body(new ErrorResponse(
+            Instant.now(),429,"Too Many Requests","Aguarde um minuto antes de tentar novamente.",request.getRequestURI()));
+    }
+
 
     @ExceptionHandler(AssetNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAssetNotFound(AssetNotFoundException ex, HttpServletRequest request) {
@@ -66,8 +72,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentials(org.springframework.security.authentication.BadCredentialsException ex, HttpServletRequest request) {
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(org.springframework.security.core.AuthenticationException ex, HttpServletRequest request) {
         ErrorResponse error = new ErrorResponse(
                 Instant.now(),
                 HttpStatus.UNAUTHORIZED.value(),
@@ -172,6 +178,15 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleEditConflict(
+            org.springframework.dao.OptimisticLockingFailureException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                Instant.now(), 409, "Conflict",
+                "Esta conta foi alterada por outra operação. Recarregue a lista e tente novamente.",
+                request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)

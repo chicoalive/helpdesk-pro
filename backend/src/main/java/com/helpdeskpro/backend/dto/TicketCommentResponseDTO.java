@@ -57,8 +57,8 @@ public class TicketCommentResponseDTO {
         this.content = content;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public java.time.OffsetDateTime getCreatedAt() {
+        return createdAt == null ? null : createdAt.atOffset(java.time.ZoneOffset.UTC);
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

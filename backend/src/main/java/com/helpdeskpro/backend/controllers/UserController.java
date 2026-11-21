@@ -1,20 +1,16 @@
 package com.helpdeskpro.backend.controllers;
 
-import com.helpdeskpro.backend.domain.User;
+import com.helpdeskpro.backend.dto.UserCreateRequestDTO;
+import com.helpdeskpro.backend.dto.UserResponseDTO;
+import com.helpdeskpro.backend.dto.UserUpdateRequestDTO;
 import com.helpdeskpro.backend.services.UserService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
-
     private final UserService userService;
 
     public UserController(UserService userService) {
@@ -22,12 +18,23 @@ public class UserController {
     }
 
     @PostMapping
-    public User createUser(@Valid @RequestBody User user) {
-        return userService.createUser(user);
+    public UserResponseDTO createUser(@Valid @RequestBody UserCreateRequestDTO request) {
+        return UserResponseDTO.fromEntity(userService.createUser(request));
+    }
+
+    @PutMapping("/{id}")
+    public UserResponseDTO updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequestDTO request) {
+        return UserResponseDTO.fromEntity(userService.updateUser(id, request));
+    }
+
+    @PatchMapping("/{id}/state")
+    public UserResponseDTO changeState(@PathVariable Long id,
+            @Valid @RequestBody com.helpdeskpro.backend.dto.UserStateRequestDTO request) {
+        return UserResponseDTO.fromEntity(userService.changeState(id, request));
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    public List<UserResponseDTO> getAllUsers() {
+        return userService.getAllUsers().stream().map(UserResponseDTO::fromEntity).toList();
     }
 }

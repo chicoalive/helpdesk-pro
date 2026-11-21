@@ -35,7 +35,8 @@ public class TokenService {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.create()
                     .withIssuer(ISSUER)
-                    .withSubject(user.getEmail())
+                    .withSubject(user.getId().toString())
+                    .withClaim("sessionVersion", user.getSessionVersion())
                     .withClaim("id", user.getId())
                     .withClaim("name", user.getName())
                     .withClaim("role", user.getRole().name())
@@ -46,15 +47,23 @@ public class TokenService {
         }
     }
 
-    public String validateToken(String token) {
+    public record ValidatedSession(long userId, long sessionVersion) {}
+
+    public ValidatedSession validateToken(String token) {
         try {
-            Algorithm algorithm = Algorithm.HMAC256(secret);
-            return JWT.require(algorithm)
+            var verified = JWT.require(Algorithm.HMAC256(secret))
                     .withIssuer(ISSUER)
                     .build()
-                    .verify(token)
-                    .getSubject();
-        } catch (JWTVerificationException exception) {
+                    .verify(token);
+            Long id = verified.getClaim("id").asLong();
+            Long version = verified.getClaim("sessionVersion").asLong();
+            if (id == null || id <= 0 || version == null || version < 0
+                    || verified.getExpiresAt() == null
+                    || !Long.toString(id).equals(verified.getSubject())) {
+                return null;
+            }
+            return new ValidatedSession(id, version);
+        } catch (JWTVerificationException | IllegalArgumentException exception) {
             return null;
         }
     }

@@ -11,6 +11,25 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # Somente credenciais fictícias de um serviço efêmero, sem dados reais.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgresql-disposable-only
+          POSTGRES_DB: validation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d validation"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      HELPDESK_DISPOSABLE_TEST_PG_URL: jdbc:postgresql://127.0.0.1:5432/validation
+      HELPDESK_DISPOSABLE_TEST_PG_USER: postgres
+      HELPDESK_DISPOSABLE_TEST_PG_PASSWORD: ci-postgresql-disposable-only
+      HELPDESK_COMPANY_DB: company_c1141b
+      HELPDESK_COMPANY_PASSWORD: CI-Company-Test-Only-2026!
 
     steps:
       - name: Checkout repository
@@ -26,7 +45,7 @@ jobs:
         run: chmod +x backend/gradlew
 
       - name: Run Backend Tests
-        run: cd backend && ./gradlew test
+        run: cd backend && ./gradlew test bootJar
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v4
