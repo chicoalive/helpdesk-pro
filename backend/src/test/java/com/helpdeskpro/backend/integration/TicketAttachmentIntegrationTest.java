@@ -112,7 +112,7 @@ class TicketAttachmentIntegrationTest {
     @Test
     @DisplayName("Upload PNG válido por REQUESTER dono salva anexo, expõe metadados e não expõe bytes no JSON")
     void uploadValidPng_ByOwnerRequester_Success() throws Exception {
-        byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        byte[] pngBytes = com.helpdeskpro.backend.TestImages.png();
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "print-erro.png",
@@ -142,7 +142,7 @@ class TicketAttachmentIntegrationTest {
     @Test
     @DisplayName("Listagem de chamados não carrega bytes de attachmentData em memória mas preserva metadados (R4)")
     void listTickets_DoesNotLoadAttachmentBytes_PreservesMetadata() throws Exception {
-        byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        byte[] pngBytes = com.helpdeskpro.backend.TestImages.png();
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "evidencia-listagem.png",
@@ -171,7 +171,7 @@ class TicketAttachmentIntegrationTest {
     @Test
     @DisplayName("Upload JPEG válido por REQUESTER dono retorna 200 OK")
     void uploadValidJpeg_ByOwnerRequester_Success() throws Exception {
-        byte[] jpgBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        byte[] jpgBytes = com.helpdeskpro.backend.TestImages.jpeg();
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "foto-tela.jpg",
@@ -248,13 +248,13 @@ class TicketAttachmentIntegrationTest {
                 "file",
                 "primeiro.png",
                 "image/png",
-                new byte[]{1, 2, 3}
+                com.helpdeskpro.backend.TestImages.png()
         );
         MockMultipartFile secondFile = new MockMultipartFile(
                 "file",
                 "segundo.png",
                 "image/png",
-                new byte[]{4, 5, 6}
+                com.helpdeskpro.backend.TestImages.png()
         );
 
         mockMvc.perform(multipart("/tickets/" + req1Ticket.getId() + "/attachment")
@@ -276,7 +276,7 @@ class TicketAttachmentIntegrationTest {
                 "file",
                 "print.png",
                 "image/png",
-                new byte[]{1, 2, 3}
+                com.helpdeskpro.backend.TestImages.png()
         );
 
         mockMvc.perform(multipart("/tickets/" + req1Ticket.getId() + "/attachment")
@@ -293,7 +293,7 @@ class TicketAttachmentIntegrationTest {
                 "file",
                 "print.png",
                 "image/png",
-                new byte[]{1, 2, 3}
+                com.helpdeskpro.backend.TestImages.png()
         );
 
         mockMvc.perform(multipart("/tickets/" + req1Ticket.getId() + "/attachment")
@@ -312,7 +312,7 @@ class TicketAttachmentIntegrationTest {
     @Test
     @DisplayName("Download do anexo permitido para REQUESTER dono, ADMIN e TECHNICIAN, bloqueado para outro REQUESTER e sem token")
     void downloadAttachment_PermissionsAndBytes() throws Exception {
-        byte[] imageBytes = new byte[]{10, 20, 30, 40, 50};
+        byte[] imageBytes = com.helpdeskpro.backend.TestImages.png();
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "evidencia.png",

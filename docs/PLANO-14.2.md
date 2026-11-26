@@ -1,6 +1,6 @@
 # Levantamento da Etapa 14.2
 
-**Atualização em 21/11/2026:** a [14.2.1 foi homologada](HOMOLOGACAO-14.2.1.md), com 404 testes backend e 220 frontend aprovados e V7 aplicada com preservação dos dados. A 14.2.2 foi homologada em 24/11/2026 (registro ao final); A 14.2.3 foi homologada em 24/11/2026; 14.2.4/14.2.5 permanecem pendentes. O texto abaixo registra o levantamento inicial.
+**Atualização em 26/11/2026:** 14.2.1–14.2.4 implementadas, homologadas e aplicadas localmente. Estado atual: 502 testes backend, 250 frontend e Flyway V1–V10. Próxima entrega: 14.2.5. Etapa 15 suspensa. O texto abaixo preserva o levantamento inicial e as atualizações históricas.
 
 Somente levantamento técnico. Nenhuma funcionalidade desta etapa foi implementada na consolidação de 14.1A–C. Etapa 15 suspensa.
 
@@ -32,3 +32,7 @@ Atribuição e transferência implementadas conforme [homologação 14.2.2](HOMO
 ## Atualização de 24/11/2026 — 14.2.3
 
 [14.2.3 homologada e aplicada](HOMOLOGACAO-14.2.3.md): 454 testes backend e 244 frontend aprovados. V9 registra novas resoluções e o prazo vigente, sem preencher histórico antigo. Mantidas 4/24/72 horas corridas, sem pausa ou calendário comercial. SLA atual, resultado histórico, cancelamento e ausência de informação são apresentados separadamente. 14.2.4/14.2.5 permanecem pendentes; Etapa 15 suspensa.
+
+## Atualização de 26/11/2026 — 14.2.4 e continuidade
+
+[Ativos e anexos homologados](HOMOLOGACAO-14.2.4.md): versão e auditoria patrimonial transacional, unicidade normalizada, preservação do histórico e validação real de PNG/JPEG até 2 MiB. V10 validada em restauração isolada antes da aplicação principal. Suítes: 502 backend e 250 frontend; builds aprovados e navegação desktop/celular com os três perfis. Na retomada, serviços locais e dados reconferidos; backup atual restaurado com 14 tabelas idênticas. Login e identidade visual preservados. Próxima entrega: 14.2.5, sem implementação nesta execução. Etapa 15 e chatbot suspensos.

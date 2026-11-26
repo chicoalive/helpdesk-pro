@@ -24,18 +24,18 @@
       <input
         type="text"
         [(ngModel)]="searchTerm"
-        placeholder="Pesquisar por código, tipo ou descrição..."
+        aria-label="Pesquisar ativos" placeholder="Pesquisar por código, tipo ou descrição..."
         class="form-control"
       />
     </div>
 
     <div class="filter-group">
-      <select [(ngModel)]="statusFilter" class="form-control">
+      <select aria-label="Filtrar situação dos ativos" [(ngModel)]="statusFilter" class="form-control">
         <option value="">Todos os status</option>
-        <option value="IN_USE">Em Uso (IN_USE)</option>
-        <option value="INACTIVE">Inativo (INACTIVE)</option>
-        <option value="UNDER_MAINTENANCE">Em Manutenção (UNDER_MAINTENANCE)</option>
-        <option value="DISCARDED">Descartado (DISCARDED)</option>
+        <option value="IN_USE">Em uso</option>
+        <option value="INACTIVE">Inativo</option>
+        <option value="UNDER_MAINTENANCE">Em manutenção</option>
+        <option value="DISCARDED">Descartado</option>
       </select>
     </div>
   </section>

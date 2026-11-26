@@ -32,6 +32,20 @@ class AssetServiceTest {
     @Mock
     private AssetRepository assetRepository;
 
+    @Mock private com.helpdeskpro.backend.repositories.AssetAuditLogRepository auditRepository;
+    @Mock private com.helpdeskpro.backend.repositories.UserRepository users;
+    @Mock private com.helpdeskpro.backend.security.SecurityUtils security;
+    @Mock private jakarta.persistence.EntityManager em;
+    @Mock private java.time.Clock clock;
+    @org.junit.jupiter.api.BeforeEach void actorSetup(){
+        var admin=new com.helpdeskpro.backend.domain.User("Admin teste","admin@asset.test","not-a-credential",com.helpdeskpro.backend.domain.UserRole.ADMIN);
+        org.springframework.test.util.ReflectionTestUtils.setField(admin,"id",1L);
+        org.mockito.Mockito.lenient().when(security.getCurrentUser()).thenReturn(admin);
+        org.mockito.Mockito.lenient().when(users.findByIdForUpdate(1L)).thenReturn(Optional.of(admin));
+        org.mockito.Mockito.lenient().when(clock.instant()).thenReturn(java.time.Instant.parse("2026-01-01T12:00:00Z"));
+        org.mockito.Mockito.lenient().when(assetRepository.findByIdForUpdate(org.mockito.ArgumentMatchers.anyLong())).thenAnswer(i->assetRepository.findById(i.getArgument(0)));
+    }
+
     @InjectMocks
     private AssetService assetService;
 
@@ -113,6 +127,7 @@ class AssetServiceTest {
     void updateAsset_Success() {
         Asset existingAsset = new Asset(1L, "NOTE-001", "Notebook", "Antigo", AssetStatus.INACTIVE);
         AssetRequestDTO updateDTO = new AssetRequestDTO("NOTE-001-MOD", "Notebook", "Novo", AssetStatus.UNDER_MAINTENANCE);
+        updateDTO.setExpectedVersion(0L);
         Asset updatedAsset = new Asset(1L, "NOTE-001-MOD", "Notebook", "Novo", AssetStatus.UNDER_MAINTENANCE);
 
         when(assetRepository.findById(1L)).thenReturn(Optional.of(existingAsset));
@@ -131,6 +146,7 @@ class AssetServiceTest {
     void updateAsset_DuplicateCodeOnOtherAsset_ThrowsException() {
         Asset existingAsset = new Asset(1L, "NOTE-001", "Notebook", "Antigo", AssetStatus.INACTIVE);
         AssetRequestDTO updateDTO = new AssetRequestDTO("NOTE-002", "Notebook", "Novo", AssetStatus.UNDER_MAINTENANCE);
+        updateDTO.setExpectedVersion(0L);
 
         when(assetRepository.findById(1L)).thenReturn(Optional.of(existingAsset));
         when(assetRepository.existsByCodeAndIdNot("NOTE-002", 1L)).thenReturn(true);
@@ -143,6 +159,7 @@ class AssetServiceTest {
     @DisplayName("Deve lançar AssetNotFoundException ao tentar atualizar ativo inexistente")
     void updateAsset_NotFound_ThrowsException() {
         AssetRequestDTO updateDTO = new AssetRequestDTO("NOTE-001", "Notebook", "Novo", AssetStatus.UNDER_MAINTENANCE);
+        updateDTO.setExpectedVersion(0L);
 
         when(assetRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -154,6 +171,7 @@ class AssetServiceTest {
     void updateAssetStatus_Success() {
         Asset existingAsset = new Asset(1L, "NOTE-001", "Notebook", "Dell", AssetStatus.INACTIVE);
         AssetStatusUpdateDTO statusDTO = new AssetStatusUpdateDTO(AssetStatus.IN_USE);
+        statusDTO.setExpectedVersion(0L);
         Asset updatedAsset = new Asset(1L, "NOTE-001", "Notebook", "Dell", AssetStatus.IN_USE);
 
         when(assetRepository.findById(1L)).thenReturn(Optional.of(existingAsset));
@@ -166,13 +184,13 @@ class AssetServiceTest {
     }
 
     @Test
-    @DisplayName("Deve excluir ativo existente com sucesso")
+    @DisplayName("Deve impedir exclusão física de ativo existente e preservar o histórico")
     void deleteAsset_Success() {
         when(assetRepository.existsById(1L)).thenReturn(true);
 
-        assetService.deleteAsset(1L);
+        assertThrows(com.helpdeskpro.backend.exceptions.BusinessRuleException.class, () -> assetService.deleteAsset(1L));
 
-        verify(assetRepository).deleteById(1L);
+        verify(assetRepository, never()).deleteById(1L);
     }
 
     @Test

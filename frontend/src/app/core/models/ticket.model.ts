@@ -110,6 +110,7 @@ export interface TicketCommentResponse {
 export type AssetStatus = 'INACTIVE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'DISCARDED';
 
 export interface AssetResponse {
+  version?: number;
   id: number;
   code: string;
   type: string;
@@ -118,8 +119,11 @@ export interface AssetResponse {
 }
 
 export interface AssetRequest {
+  expectedVersion?: number;
   code: string;
   type: string;
   description?: string | null;
   status: AssetStatus;
 }
+
+export interface AssetAuditResponse { id:number;assetId:number;actorId:number;actorName:string;operation:string;occurredAt:string;changes:Record<string,{oldValue:string|null;newValue:string|null}>; }

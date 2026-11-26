@@ -87,6 +87,7 @@ class TicketServiceTest {
         org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(requester));
         org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(admin));
         activeAsset = new Asset(1L, "NOTE-001", "Notebook", "Dell Latitude", AssetStatus.IN_USE);
+        org.mockito.Mockito.lenient().when(assetRepository.findByIdForUpdate(org.mockito.ArgumentMatchers.anyLong())).thenAnswer(i -> assetRepository.findById(i.getArgument(0)));
     }
 
     @Test

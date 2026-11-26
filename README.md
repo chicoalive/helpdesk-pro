@@ -54,11 +54,11 @@ Sistema full stack para gestão de chamados de suporte técnico, administração
 - **Autenticação e autorização com JWT, RBAC e validação de expiração:** endpoints e rotas protegidos por papel (`ADMIN`, `TECHNICIAN`, `REQUESTER`), validação de expiração do token no cliente e proteção de propriedade dos recursos no domínio.
 - **Máquina de estados estrita:** transições de status validadas no serviço de domínio e refletidas dinamicamente na interface, exigindo preenchimento de solução técnica antes da resolução ou fechamento.
 - **Consultas JPA otimizadas:** projeção leve nas listagens de chamados evitando o carregamento de arrays binários (`byte[]`) de anexos em memória.
-- **SLA derivado sem acoplamento de persistência:** prazos e alertas de violação calculados de forma determinística a partir da prioridade e do instante de criação.
+- **SLA determinístico e medição histórica:** prazos calculados a partir da prioridade e criação; novas resoluções preservam o instante e o prazo vigentes, sem inventar resultados para registros antigos.
 - **Trilha de auditoria consistente:** registros gerados exclusivamente dentro das transações reais de atribuição de técnico, mudança de status e solução.
-- **Docker Compose Full Stack e perfil de produção seguro:** build multi-stage para backend (JDK 21 → JRE 21 Alpine) e frontend (Node 24 Alpine → Nginx Alpine), exigência explícita de `JWT_SECRET`, configuração de CORS por variável de ambiente e seed idempotente com proteção das contas de demonstração.
+- **Docker Compose Full Stack e perfil de produção seguro:** build multi-stage para backend (JDK 21 → JRE 21 Alpine) e frontend (Node 24 Alpine → Nginx Alpine), exigência explícita de `JWT_SECRET`, configuração de CORS por variável de ambiente e demonstração somente por ativação explícita, separada da instalação real.
 - **Pipeline de CI no GitHub Actions:** execução automatizada da suíte de testes do backend e testes/build do frontend a cada `push` ou `pull_request` na branch `main`.
-- **698 testes automatizados:** cobertura abrangente de regras de negócio, segurança, contratos REST, componentes, guards e serviços.
+- **752 testes automatizados:** cobertura abrangente de regras de negócio, segurança, contratos REST, componentes, guards e serviços.
 
 ---
 
@@ -110,9 +110,9 @@ stateDiagram-v2
 
 ## Testes e qualidade
 
-- **Backend:** **454 testes aprovados** (testes unitários com JUnit 5 / Mockito e testes de integração com `@SpringBootTest`, `MockMvc` e bancos **H2** e **PostgreSQL real isolado**).
-- **Frontend:** **244 testes aprovados** distribuídos em 24 arquivos (Vitest + Angular TestBed).
-- **Total:** **698 testes automatizados** passando.
+- **Backend:** **502 testes aprovados** (testes unitários com JUnit 5 / Mockito e testes de integração com `@SpringBootTest`, `MockMvc` e bancos **H2** e **PostgreSQL real isolado**).
+- **Frontend:** **250 testes aprovados** distribuídos em 24 arquivos (Vitest + Angular TestBed).
+- **Total:** **752 testes automatizados** passando.
 - **Integração Contínua:** o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) valida automaticamente os testes do backend, os testes unitários do frontend e o build de produção em cada `push` e `pull_request` para `main`.
 
 ---
@@ -221,7 +221,7 @@ original. Contas preexistentes não recebem eventos de criação retroativos.
 ### Evolução do banco e sessões
 
 O backend usa Flyway em PostgreSQL. Bancos novos executam a V1 (esquema inicial)
-e V2–V9 (sessões, gestão e auditoria de contas, recuperação e versão dos chamados). Instalações legadas sem Flyway recebem baseline na V1 e executam V2–V9. Bancos já versionados executam somente as migrações pendentes. O Hibernate valida o esquema após as migrações.
+e V2–V10 (sessões, gestão e auditoria de contas, recuperação, concorrência de chamados/ativos, SLA e auditoria patrimonial). Instalações legadas sem Flyway recebem baseline na V1 e executam V2–V10. Bancos já versionados executam somente as migrações pendentes. O Hibernate valida o esquema após as migrações.
 Faça backup e homologue uma restauração isolada antes de atualizar a instalação.
 
 A V2 mantém os usuários existentes ativos e com versão de sessão zero. Não
@@ -317,7 +317,7 @@ O responsável deve guardar a credencial em armazenamento protegido e manter o c
 
 O Compose publica portas somente em `127.0.0.1`; a instalação não é publicada na rede. Demonstração permanece explicitamente desabilitada no modelo de ambiente.
 
-Para executar todos os 454 testes do backend, disponibilize uma instância PostgreSQL **descartável e separada do principal**, com permissão de criar bancos. Configure, somente no ambiente do processo:
+Para executar todos os 502 testes do backend, disponibilize uma instância PostgreSQL **descartável e separada do principal**, com permissão de criar bancos. Configure, somente no ambiente do processo:
 
 - `HELPDESK_DISPOSABLE_TEST_PG_URL`: JDBC do banco descartável de controle.
 - `HELPDESK_DISPOSABLE_TEST_PG_USER` e `HELPDESK_DISPOSABLE_TEST_PG_PASSWORD`.
@@ -334,8 +334,12 @@ Homologação concluída com controle de versão dos chamados (Flyway V7), preve
 
 ## Etapa 14.2.2 — Atribuição e transferência
 
-Política de responsáveis, justificativa obrigatória, concorrência e auditoria transacional implementadas. Consulte a [homologação da 14.2.2](docs/HOMOLOGACAO-14.2.2.md). SLA e gestão de ativos permanecem para as próximas entregas.
+Política de responsáveis, justificativa obrigatória, concorrência e auditoria transacional implementadas. Consulte a [homologação da 14.2.2](docs/HOMOLOGACAO-14.2.2.md). As entregas posteriores são registradas nas seções seguintes.
 
 ## Etapa 14.2.3 — Medição de SLA
 
 Mantidos os prazos de 4/24/72 horas corridas, com medição persistida nas novas resoluções, resultado histórico separado do alerta ativo e apresentação em horário de Brasília. Registros anteriores sem snapshot não têm resultado inventado. Consulte a [homologação 14.2.3](docs/HOMOLOGACAO-14.2.3.md).
+
+## Etapa 14.2.4 — Ativos e anexos
+
+Cadastro e edição de equipamentos com código normalizado, unicidade no PostgreSQL, controle de versão e auditoria transacional. Exclusão física bloqueada para preservar o histórico. PNG/JPEG de até **2.097.152 bytes (2 MiB)** são validados por conteúdo e decodificação, com limites de dimensões e acesso por chamado. A V10 preserva os registros anteriores. Consulte [regras, testes e preservação dos dados](docs/HOMOLOGACAO-14.2.4.md). A próxima entrega é a 14.2.5; Etapa 15 suspensa.

@@ -78,7 +78,7 @@ class CompanyWorkflowPostgresIntegrationTest {
         mvc=MockMvcBuilders.webAppContextSetup(context).apply(SecurityMockMvcConfigurers.springSecurity()).build();
         password=System.getenv("HELPDESK_COMPANY_PASSWORD"); assertNotNull(password);
         assertEquals(0,users.count());
-        assertEquals(9L,jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Long.class));
+        assertEquals(10L,jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Long.class));
         assertTrue(provisioner.create("Helena Administradora","admin1@empresa.test",password.toCharArray()));
         assertFalse(provisioner.create("Blocked","blocked@empresa.test",password.toCharArray()));
         String admin=login("admin1@empresa.test");jwt=admin;
@@ -95,7 +95,7 @@ class CompanyWorkflowPostgresIntegrationTest {
         call("POST","/assets",Map.of("code","EMP-NB-02","type","Notebook","status","IN_USE"),201);
         String requester=login(req1.getEmail());jwt=requester;
         long ticket=call("POST","/tickets",Map.of("title","Notebook sem conexão","description","Wi-fi indisponível","category","INCIDENTE_EQUIPAMENTO","assetId",asset),201).get("id").asLong();
-        byte[] bytes=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5V8AAAAASUVORK5CYII=");
+        byte[] bytes=com.helpdeskpro.backend.TestImages.png();
         var attachment=new MockMultipartFile("file","evidencia.png","image/png",bytes);
         assertEquals(200,mvc.perform(multipart("/tickets/"+ticket+"/attachment").file(attachment).header("Authorization","Bearer "+jwt)).andReturn().getResponse().getStatus());
         call("POST","/tickets/"+ticket+"/comments",Map.of("content","Ocorrência registrada pelo funcionário."),201);

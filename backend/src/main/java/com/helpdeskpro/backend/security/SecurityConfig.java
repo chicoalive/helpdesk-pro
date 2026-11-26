@@ -48,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/password-recovery", "/auth/password-reset").permitAll()
                         .requestMatchers("/admin/password-recoveries", "/admin/password-recoveries/**").hasRole("ADMIN")
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/assets/*/audit").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/assets/available").hasAnyRole("REQUESTER", "ADMIN", "TECHNICIAN")
                         .requestMatchers(HttpMethod.GET, "/assets", "/assets/**").hasAnyRole("ADMIN", "TECHNICIAN")
                         .requestMatchers("/assets", "/assets/**").hasRole("ADMIN")

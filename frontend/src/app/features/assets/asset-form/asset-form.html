@@ -12,9 +12,10 @@
     </header>
 
     @if (errorMessage) {
-      <div class="alert alert-error">{{ errorMessage }}</div>
+      <div class="alert alert-error" role="alert">{{ errorMessage }}</div>
     }
 
+    @if (hasConflict && assetId) { <button type="button" class="btn-cancel" (click)="loadAsset(assetId)">Recarregar ativo</button> }
     @if (isLoading) {
       <div class="alert alert-info">Carregando dados do ativo...</div>
     }
@@ -26,13 +27,14 @@
           <input
             id="code"
             type="text"
-            formControlName="code"
+            formControlName="code" maxlength="255" aria-describedby="asset-code-help"
             placeholder="Ex: NOTE-100"
             class="form-input"
             [class.input-error]="code?.invalid && code?.touched"
           />
+          <small id="asset-code-help">O código será salvo em maiúsculas, sem espaços nas extremidades.</small>
           @if (code?.invalid && code?.touched) {
-            <span class="error-message">O código do ativo é obrigatório.</span>
+            <span class="error-message">Informe um código válido de até 255 caracteres.</span>
           }
         </div>
 
@@ -41,13 +43,13 @@
           <input
             id="type"
             type="text"
-            formControlName="type"
+            formControlName="type" maxlength="255"
             placeholder="Ex: Notebook, Monitor, Servidor"
             class="form-input"
             [class.input-error]="type?.invalid && type?.touched"
           />
           @if (type?.invalid && type?.touched) {
-            <span class="error-message">O tipo do ativo é obrigatório.</span>
+            <span class="error-message">Informe um tipo válido de até 255 caracteres.</span>
           }
         </div>
 
@@ -59,10 +61,10 @@
             class="form-input select-input"
             [class.input-error]="status?.invalid && status?.touched"
           >
-            <option value="IN_USE">Em Uso (IN_USE)</option>
-            <option value="INACTIVE">Inativo (INACTIVE)</option>
-            <option value="UNDER_MAINTENANCE">Em Manutenção (UNDER_MAINTENANCE)</option>
-            <option value="DISCARDED">Descartado (DISCARDED)</option>
+            <option value="IN_USE">Em uso</option>
+            <option value="INACTIVE">Inativo</option>
+            <option value="UNDER_MAINTENANCE">Em manutenção</option>
+            <option value="DISCARDED">Descartado</option>
           </select>
           @if (status?.invalid && status?.touched) {
             <span class="error-message">O status do ativo é obrigatório.</span>
@@ -73,15 +75,18 @@
           <label for="description" class="form-label">Descrição (Opcional)</label>
           <textarea
             id="description"
-            formControlName="description"
+            formControlName="description" maxlength="255"
             placeholder="Ex: Fabricante, modelo, especificações ou observações adicionais"
             rows="4"
             class="form-input textarea-input"
           ></textarea>
         </div>
 
+        @if (requiresStatusConfirmation) {
+          <div class="form-group"><p>Equipamentos fora de uso não recebem novos incidentes. Os chamados e vínculos anteriores serão preservados.</p><label><input type="checkbox" [checked]="statusConfirmed" (change)="statusConfirmed=$any($event.target).checked" /> Confirmo a alteração de situação do equipamento</label></div>
+        }
         <div class="form-actions">
-          <button type="submit" [disabled]="isSaving" class="btn-submit">
+          <button type="submit" [disabled]="isSaving || hasConflict || assetForm.invalid || (requiresStatusConfirmation && !statusConfirmed)" class="btn-submit">
             {{ isSaving ? 'Salvando...' : (isEditMode ? 'Salvar Alterações' : 'Cadastrar Ativo') }}
           </button>
           <a routerLink="/assets" class="btn-cancel">Cancelar</a>
@@ -90,3 +95,12 @@
     }
   </div>
 </div>
+
+@if (isEditMode && isAdmin) {
+  <section class="asset-form-container" aria-label="Auditoria patrimonial"><div class="form-card"><h2>Auditoria patrimonial</h2>
+    @if (auditError) {<p role="alert">{{ auditError }}</p>}
+    @for (entry of auditEntries; track entry.id) {
+      <article><p><strong>{{ entry.operation === 'ASSET_CREATED' ? 'Cadastro de ativo' : 'Alteração de ativo' }}</strong> — {{ entry.actorName }} — {{ auditDate(entry.occurredAt) }} (Brasília)</p><ul>@for (change of auditFields(entry);track change.field) {<li>{{ fieldLabel(change.field) }}: {{ auditValue(change.field,change.oldValue) }} → {{ auditValue(change.field,change.newValue) }}</li>}</ul></article>
+    } @empty { @if (!auditError) {<p>Nenhuma alteração patrimonial registrada.</p>} }
+  </div></section>
+}

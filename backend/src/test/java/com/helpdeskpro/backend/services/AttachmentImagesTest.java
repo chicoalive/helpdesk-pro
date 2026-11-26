@@ -1,0 +1,22 @@
+package com.helpdeskpro.backend.services;
+import com.helpdeskpro.backend.TestImages;
+import com.helpdeskpro.backend.exceptions.BusinessRuleException;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
+import java.io.*;
+import java.util.*;
+import java.nio.*;
+import java.util.zip.CRC32;
+import static org.junit.jupiter.api.Assertions.*;
+class AttachmentImagesTest {
+ static byte[] chunk(String type,byte[] data)throws Exception{var out=new ByteArrayOutputStream();var stream=new DataOutputStream(out);stream.writeInt(data.length);byte[] name=type.getBytes(java.nio.charset.StandardCharsets.US_ASCII);stream.write(name);stream.write(data);CRC32 crc=new CRC32();crc.update(name);crc.update(data);stream.writeInt((int)crc.getValue());return out.toByteArray();}
+ static byte[] insert(byte[] png,String type,byte[] data)throws Exception{var out=new ByteArrayOutputStream();out.write(png,0,png.length-12);out.write(chunk(type,data));out.write(png,png.length-12,12);return out.toByteArray();}
+ @Test void exactlyTwoMiBRemainsAcceptedIncludingMultipartOverheadAllowance()throws Exception{byte[] original=TestImages.png(),payload=new byte[AttachmentImages.MAX_BYTES-original.length-12];Arrays.fill(payload,(byte)'x');System.arraycopy(new byte[]{'n','o','t','e',0},0,payload,0,5);byte[] full=insert(original,"tEXt",payload);assertEquals(AttachmentImages.MAX_BYTES,full.length);assertEquals("image/png",AttachmentImages.upload(new MockMultipartFile("file","limit.png","image/png",full)).contentType());}
+ @Test void trailingPolyglotDataIsRejected()throws Exception{byte[] png=TestImages.png();var out=new ByteArrayOutputStream();out.write(png);out.write("<html><script>bad</script></html>".getBytes());assertThrows(BusinessRuleException.class,()->AttachmentImages.validate(out.toByteArray()));}
+ @Test void animationExtensionsAreRejectedToBoundRenderingCost()throws Exception{byte[] animated=insert(TestImages.png(),"acTL",new byte[]{0,0,0,2,0,0,0,0});assertThrows(BusinessRuleException.class,()->AttachmentImages.validate(animated));}
+ @Test void malformedCompressedPixelsWithValidChunkCrcAreRejected()throws Exception{byte[] png=TestImages.png();int p=8;while(!new String(png,p+4,4,java.nio.charset.StandardCharsets.US_ASCII).equals("IDAT"))p+=12+ByteBuffer.wrap(png,p,4).getInt();int n=ByteBuffer.wrap(png,p,4).getInt();png[p+8]^=127;CRC32 crc=new CRC32();crc.update(png,p+4,n+4);ByteBuffer.wrap(png,p+8+n,4).putInt((int)crc.getValue());assertThrows(BusinessRuleException.class,()->AttachmentImages.validate(png));}
+ @Test void pixelBudgetIsCheckedBeforeDecoding()throws Exception{byte[] png=TestImages.png();ByteBuffer.wrap(png,16,8).putInt(5000).putInt(5000);CRC32 crc=new CRC32();crc.update(png,12,17);ByteBuffer.wrap(png,29,4).putInt((int)crc.getValue());assertThrows(BusinessRuleException.class,()->AttachmentImages.validate(png));}
+ @Test void jpegProgressiveIsAcceptedWithoutTrustingFilename()throws Exception{var image=new java.awt.image.BufferedImage(3,2,java.awt.image.BufferedImage.TYPE_INT_RGB);var writer=javax.imageio.ImageIO.getImageWritersByFormatName("jpeg").next();var out=new ByteArrayOutputStream();try(var target=new javax.imageio.stream.MemoryCacheImageOutputStream(out)){writer.setOutput(target);var parameters=writer.getDefaultWriteParam();parameters.setProgressiveMode(javax.imageio.ImageWriteParam.MODE_DEFAULT);writer.write(null,new javax.imageio.IIOImage(image,null,null),parameters);}finally{writer.dispose();image.flush();}assertEquals("image/jpeg",AttachmentImages.validate(out.toByteArray()));}
+ @Test void missingJpegScanCannotBeForgedByAddingAnEndMarker(){byte[] jpeg=TestImages.jpeg();byte[] cut=Arrays.copyOf(jpeg,jpeg.length/2+2);cut[cut.length-2]=(byte)255;cut[cut.length-1]=(byte)217;assertThrows(BusinessRuleException.class,()->AttachmentImages.validate(cut));}
+ @Test void ioFailureDoesNotExposePathsOrInternalException()throws Exception{var file=new MockMultipartFile("file","image.png","image/png",TestImages.png()){@Override public InputStream getInputStream()throws IOException{throw new IOException("private-path-not-to-expose");}};var error=assertThrows(BusinessRuleException.class,()->AttachmentImages.upload(file));assertFalse(error.getMessage().contains("private-path"));}
+}

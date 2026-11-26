@@ -96,7 +96,7 @@ public class Ticket {
     private String attachmentContentType;
 
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "attachment_data")
+    @Column(name = "attachment_data", columnDefinition = "bytea")
     private byte[] attachmentData;
 
     public Ticket() {

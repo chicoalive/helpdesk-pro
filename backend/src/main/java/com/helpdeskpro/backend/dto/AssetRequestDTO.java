@@ -5,13 +5,20 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class AssetRequestDTO {
+    @jakarta.validation.constraints.PositiveOrZero
+    private Long expectedVersion;
+    public Long getExpectedVersion() { return expectedVersion; }
+    public void setExpectedVersion(Long value) { expectedVersion = value; }
 
     @NotBlank(message = "O código do ativo é obrigatório")
+    @jakarta.validation.constraints.Size(max=255, message="O código deve ter no máximo 255 caracteres")
     private String code;
 
     @NotBlank(message = "O tipo do ativo é obrigatório")
+    @jakarta.validation.constraints.Size(max=255, message="O tipo deve ter no máximo 255 caracteres")
     private String type;
 
+    @jakarta.validation.constraints.Size(max=255, message="A descrição deve ter no máximo 255 caracteres")
     private String description;
 
     @NotNull(message = "O status do ativo é obrigatório")

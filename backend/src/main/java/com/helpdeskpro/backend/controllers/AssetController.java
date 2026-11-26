@@ -69,6 +69,11 @@ public class AssetController {
         return ResponseEntity.ok(updated);
     }
 
+    @GetMapping("/{id}/audit")
+    public ResponseEntity<List<com.helpdeskpro.backend.dto.AssetAuditResponseDTO>> getAudit(@PathVariable Long id) {
+        return ResponseEntity.ok(assetService.getAudit(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAsset(@PathVariable Long id) {
         assetService.deleteAsset(id);

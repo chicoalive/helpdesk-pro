@@ -185,9 +185,11 @@ public class GlobalExceptionHandler {
             org.springframework.dao.ConcurrencyFailureException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
                 Instant.now(), 409, "Conflict",
-                request.getRequestURI().startsWith("/tickets/")
+                request.getRequestURI().equals("/tickets") ? "Os dados usados na abertura do chamado foram alterados por outra operação. Recarregue e tente novamente."
+                          : request.getRequestURI().startsWith("/tickets/")
                         ? "Este chamado foi alterado por outra operação. Recarregue os dados e tente novamente."
-                        : "Esta conta foi alterada por outra operação. Recarregue a lista e tente novamente.",
+                        : request.getRequestURI().startsWith("/assets/") ? "Este ativo foi alterado por outra operação. Recarregue os dados e tente novamente."
+                          : "Esta conta foi alterada por outra operação. Recarregue a lista e tente novamente.",
                 request.getRequestURI()));
     }
 

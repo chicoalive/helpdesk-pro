@@ -18,6 +18,11 @@ public class Asset {
     @Column(name = "id")
     private Long id;
 
+    @jakarta.persistence.Version
+    @Column(nullable = false)
+    private Long version = 0L;
+    public Long getVersion() { return version; }
+
     @Column(name = "code", nullable = false, unique = true)
     private String code;
 

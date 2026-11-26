@@ -84,6 +84,11 @@ public class TicketController {
         TicketService.TicketAttachmentData attachment = ticketService.getTicketAttachment(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(attachment.contentType()))
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; sandbox")
+                .header("Cache-Control", "no-store")
+                .header("Content-Disposition", "inline; filename=\"anexo-" + id + (attachment.contentType().equals("image/png") ? ".png" : ".jpg") + "\"")
+                .contentLength(attachment.data().length)
                 .body(attachment.data());
     }
 }

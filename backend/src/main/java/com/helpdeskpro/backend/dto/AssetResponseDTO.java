@@ -6,6 +6,8 @@ import com.helpdeskpro.backend.domain.AssetStatus;
 public class AssetResponseDTO {
 
     private Long id;
+    private Long version;
+    public Long getVersion() { return version; }
     private String code;
     private String type;
     private String description;
@@ -23,13 +25,15 @@ public class AssetResponseDTO {
     }
 
     public static AssetResponseDTO fromEntity(Asset asset) {
-        return new AssetResponseDTO(
+        AssetResponseDTO dto = new AssetResponseDTO(
                 asset.getId(),
                 asset.getCode(),
                 asset.getType(),
                 asset.getDescription(),
                 asset.getStatus()
         );
+        dto.version = asset.getVersion();
+        return dto;
     }
 
     public Long getId() {

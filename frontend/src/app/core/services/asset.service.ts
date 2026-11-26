@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AssetRequest, AssetResponse } from '../models/ticket.model';
+import { AssetRequest, AssetResponse, AssetAuditResponse } from '../models/ticket.model';
 
 @Injectable({
   providedIn: 'root',
@@ -35,6 +35,8 @@ export class AssetService {
       headers: this.getAuthHeaders(),
     });
   }
+
+  getAudit(id:number): Observable<AssetAuditResponse[]> { return this.http.get<AssetAuditResponse[]>(this.apiUrl+'/'+id+'/audit',{headers:this.getAuthHeaders()}); }
 
   createAsset(asset: AssetRequest): Observable<AssetResponse> {
     return this.http.post<AssetResponse>(this.apiUrl, asset, {

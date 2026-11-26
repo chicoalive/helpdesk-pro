@@ -96,11 +96,10 @@ class AssetControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /assets/{id} - Deve retornar HTTP 204 No Content ao excluir")
-    void deleteAsset_Returns204() {
-        ResponseEntity<Void> result = assetController.deleteAsset(1L);
-
-        assertEquals(HttpStatus.NO_CONTENT, result.getStatusCode());
+    @DisplayName("DELETE /assets/{id} - Deve propagar a recusa de exclusão física")
+    void deleteAsset_PropagatesHistoryProtection() {
+        org.mockito.Mockito.doThrow(new com.helpdeskpro.backend.exceptions.BusinessRuleException("Ativos não podem ser excluídos.")).when(assetService).deleteAsset(1L);
+        org.junit.jupiter.api.Assertions.assertThrows(com.helpdeskpro.backend.exceptions.BusinessRuleException.class, () -> assetController.deleteAsset(1L));
         verify(assetService).deleteAsset(1L);
     }
 }

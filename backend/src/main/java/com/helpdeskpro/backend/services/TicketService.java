@@ -100,6 +100,11 @@ public class TicketService {
             throw new AccessDeniedException("Sessão não disponível. Entre novamente.");
         }
         requester = lockedRequester;
+        if (asset != null) {
+            asset = assetRepository.findByIdForUpdate(asset.getId()).orElseThrow(() -> new AssetNotFoundException("Ativo não encontrado."));
+            entityManager.refresh(asset);
+            if (asset.getStatus() != AssetStatus.IN_USE) throw new BusinessRuleException("Somente ativos com status IN_USE podem ser vinculados a chamados.");
+        }
 
         validateNoDuplicateActiveTicket(
                 requester.getId(),
@@ -414,27 +419,10 @@ public class TicketService {
             throw new BusinessRuleException("Este chamado já possui uma imagem anexada.");
         }
 
-        if (file == null || file.isEmpty()) {
-            throw new BusinessRuleException("O arquivo de imagem não pode estar vazio.");
-        }
-
-        if (file.getSize() > MAX_ATTACHMENT_SIZE_BYTES) {
-            throw new BusinessRuleException("A imagem deve ter no máximo 2 MB.");
-        }
-
-        String contentType = file.getContentType();
-        if (!"image/png".equalsIgnoreCase(contentType) && !"image/jpeg".equalsIgnoreCase(contentType)) {
-            throw new BusinessRuleException("Formato de arquivo inválido. Apenas imagens PNG e JPG/JPEG são permitidas.");
-        }
-
-        try {
-            String originalName = file.getOriginalFilename();
-            ticket.setAttachmentName(originalName != null && !originalName.isBlank() ? originalName : "anexo");
-            ticket.setAttachmentContentType(contentType.toLowerCase());
-            ticket.setAttachmentData(file.getBytes());
-        } catch (IOException e) {
-            throw new BusinessRuleException("Não foi possível processar o arquivo enviado.");
-        }
+        var image = AttachmentImages.upload(file);
+        ticket.setAttachmentName(image.name());
+        ticket.setAttachmentContentType(image.contentType());
+        ticket.setAttachmentData(image.bytes());
 
         Ticket savedTicket = ticketRepository.save(ticket);
         ticketRepository.flush();
@@ -457,7 +445,7 @@ public class TicketService {
 
         return new TicketAttachmentData(
                 ticket.getAttachmentName(),
-                ticket.getAttachmentContentType(),
+                AttachmentImages.validate(ticket.getAttachmentData()),
                 ticket.getAttachmentData()
         );
     }

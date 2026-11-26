@@ -4,6 +4,10 @@ import com.helpdeskpro.backend.domain.AssetStatus;
 import jakarta.validation.constraints.NotNull;
 
 public class AssetStatusUpdateDTO {
+    @jakarta.validation.constraints.PositiveOrZero
+    private Long expectedVersion;
+    public Long getExpectedVersion() { return expectedVersion; }
+    public void setExpectedVersion(Long value) { expectedVersion = value; }
 
     @NotNull(message = "O status do ativo é obrigatório")
     private AssetStatus status;

@@ -17,11 +17,12 @@ describe('AssetForm', () => {
     getAssetById: ReturnType<typeof vi.fn>;
     createAsset: ReturnType<typeof vi.fn>;
     updateAsset: ReturnType<typeof vi.fn>;
+    getAudit: ReturnType<typeof vi.fn>;
   };
   let authServiceSpy: { isAdmin: ReturnType<typeof vi.fn> };
 
   const mockAsset: AssetResponse = {
-    id: 1,
+    id: 1, version:0,
     code: 'NOTE-100',
     type: 'Notebook',
     description: 'Dell Latitude 3420',
@@ -30,6 +31,7 @@ describe('AssetForm', () => {
 
   const setupComponent = async (idParam: string | null = null, isAdminUser = true) => {
     assetServiceSpy = {
+      getAudit: vi.fn().mockReturnValue(of([])),
       getAssetById: vi.fn().mockReturnValue(of(mockAsset)),
       createAsset: vi.fn().mockReturnValue(of(mockAsset)),
       updateAsset: vi.fn().mockReturnValue(of(mockAsset)),
@@ -126,10 +128,11 @@ describe('AssetForm', () => {
       description: 'Memoria RAM expandida',
       status: 'UNDER_MAINTENANCE',
     });
-
+    component.statusConfirmed = true;
     component.onSubmit();
 
     expect(assetServiceSpy.updateAsset).toHaveBeenCalledWith(1, {
+      expectedVersion: 0,
       code: 'NOTE-100-MOD',
       type: 'Notebook',
       description: 'Memoria RAM expandida',
@@ -196,4 +199,31 @@ describe('AssetForm', () => {
     expect(component.errorMessage).toContain('Apenas administradores podem cadastrar ou editar ativos.');
     expect(component.assetForm.disabled).toBe(true);
   });
+  it('requires confirmation before an equipment status change',async()=>{
+    await setupComponent('1');component.assetForm.controls.status.setValue('DISCARDED');component.onSubmit();
+    expect(assetServiceSpy.updateAsset).not.toHaveBeenCalled();expect(component.errorMessage).toContain('Confirme');
+    component.statusConfirmed=true;component.onSubmit();expect(assetServiceSpy.updateAsset).toHaveBeenCalledWith(1,expect.objectContaining({status:'DISCARDED',expectedVersion:0}));
+  });
+  it('preserves draft on conflict and reloads only after explicit action',async()=>{
+    await setupComponent('1');component.assetForm.controls.description.setValue('Rascunho mantido');
+    assetServiceSpy.updateAsset.mockReturnValue(throwError(()=>new HttpErrorResponse({status:409,error:{message:'Este ativo foi alterado por outra operação. Recarregue os dados e tente novamente.'}})));
+    component.onSubmit();expect(component.hasConflict).toBe(true);expect(component.assetForm.controls.description.value).toBe('Rascunho mantido');
+    component.onSubmit();expect(assetServiceSpy.updateAsset).toHaveBeenCalledTimes(1);
+    assetServiceSpy.getAssetById.mockReturnValue(of({...mockAsset,version:1,description:'Salvo por outro administrador'}));component.loadAsset(1);
+    expect(component.hasConflict).toBe(false);expect(component.assetVersion).toBe(1);expect(component.assetForm.controls.description.value).toBe('Salvo por outro administrador');
+  });
+  it('normalizes code and rejects whitespace and oversized fields',async()=>{
+    await setupComponent();component.assetForm.setValue({code:'  nb-01  ',type:'Notebook',description:'',status:'IN_USE'});component.onSubmit();expect(assetServiceSpy.createAsset).toHaveBeenCalledWith(expect.objectContaining({code:'NB-01'}));
+    component.assetForm.controls.code.setValue('   ');expect(component.assetForm.invalid).toBe(true);component.assetForm.controls.code.setValue('x'.repeat(256));expect(component.assetForm.invalid).toBe(true);
+  });
+  it('does not submit twice while processing',async()=>{
+    await setupComponent();assetServiceSpy.createAsset.mockReturnValue(new (await import('rxjs')).Observable(()=>{}));component.assetForm.setValue({code:'NB-02',type:'Notebook',description:'',status:'IN_USE'});component.onSubmit();component.onSubmit();expect(assetServiceSpy.createAsset).toHaveBeenCalledTimes(1);
+  });
+  it('shows patrimonial audit with readable status and no credentials',async()=>{
+    await setupComponent('1');assetServiceSpy.getAudit.mockReturnValue(of([{id:1,assetId:1,actorId:5,actorName:'Administrador',operation:'ASSET_UPDATED',occurredAt:'2026-01-01T12:00:00Z',changes:{status:{oldValue:'IN_USE',newValue:'DISCARDED'}}}]));component.loadAudit(1);fixture.detectChanges();await fixture.whenStable();expect(fixture.nativeElement.textContent).toContain('Auditoria patrimonial');expect(fixture.nativeElement.textContent).toContain('Descartado');expect(fixture.nativeElement.textContent).toContain('09:00:00');
+  });
+  it('refuses edit submission when server version is unavailable',async()=>{
+    await setupComponent('1');component.assetVersion=null;component.onSubmit();expect(assetServiceSpy.updateAsset).not.toHaveBeenCalled();expect(component.errorMessage).toContain('versão atual');
+  });
+
 });
