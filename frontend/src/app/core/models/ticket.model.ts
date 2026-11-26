@@ -19,6 +19,7 @@ export type TicketPriority = 'BAIXA' | 'MEDIA' | 'ALTA';
 export type UserRole = 'REQUESTER' | 'TECHNICIAN' | 'ADMIN';
 
 export interface TicketResponse {
+  version?: number;
   id: number;
   title: string;
   description: string;
@@ -30,6 +31,10 @@ export interface TicketResponse {
   updatedAt: string | null;
   slaDeadline: string | null;
   slaBreached: boolean;
+  slaStatus?: import('./ticket-sla').TicketSlaStatus;
+  slaDelaySeconds?: number | null;
+  slaEvaluatedAt?: string | null;
+  resolvedAt?: string | null;
   requesterId: number;
   requesterName: string;
   requesterEmail: string;
@@ -54,10 +59,13 @@ export interface TicketRequest {
 }
 
 export interface TicketAssignTechnicianRequest {
+  justification?: string;
+  expectedVersion?: number;
   technicianId: number;
 }
 
 export interface TicketStatusUpdateRequest {
+  expectedVersion?: number;
   status: TicketStatus;
   solution?: string | null;
 }

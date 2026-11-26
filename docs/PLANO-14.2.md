@@ -1,5 +1,7 @@
 # Levantamento da Etapa 14.2
 
+**Atualização em 21/11/2026:** a [14.2.1 foi homologada](HOMOLOGACAO-14.2.1.md), com 404 testes backend e 220 frontend aprovados e V7 aplicada com preservação dos dados. A 14.2.2 foi homologada em 24/11/2026 (registro ao final); A 14.2.3 foi homologada em 24/11/2026; 14.2.4/14.2.5 permanecem pendentes. O texto abaixo registra o levantamento inicial.
+
 Somente levantamento técnico. Nenhuma funcionalidade desta etapa foi implementada na consolidação de 14.1A–C. Etapa 15 suspensa.
 
 ## Estado observado e entregas propostas
@@ -22,3 +24,11 @@ Somente levantamento técnico. Nenhuma funcionalidade desta etapa foi implementa
 5. **14.2.5 — Rotinas e homologação de empresa.** Ensaiar jornada integrada, backup/restauração, contingência administrativa e operação sem intervenção do desenvolvedor.
 
 Cada entrega deve incluir critério de aceite, testes PostgreSQL isolados, regressão frontend/backend, inspeção visual quando aplicável e comparação do banco principal antes/depois. Sem usuários fictícios no principal e sem publicação externa.
+
+## Atualização de 24/11/2026 — 14.2.2
+
+Atribuição e transferência implementadas conforme [homologação 14.2.2](HOMOLOGACAO-14.2.2.md): 425 testes backend e 229 frontend aprovados. V8 acrescenta justificativa à auditoria, preservando V1–V7 e o histórico. Transferência administrativa somente em estados ativos; técnico somente assume chamado sem responsável. Próxima entrega: 14.2.3, com definição prévia da política de SLA. Etapa 15 suspensa.
+
+## Atualização de 24/11/2026 — 14.2.3
+
+[14.2.3 homologada e aplicada](HOMOLOGACAO-14.2.3.md): 454 testes backend e 244 frontend aprovados. V9 registra novas resoluções e o prazo vigente, sem preencher histórico antigo. Mantidas 4/24/72 horas corridas, sem pausa ou calendário comercial. SLA atual, resultado histórico, cancelamento e ausência de informação são apresentados separadamente. 14.2.4/14.2.5 permanecem pendentes; Etapa 15 suspensa.

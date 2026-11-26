@@ -138,4 +138,8 @@ describe('DashboardSummary', () => {
     expect(localStorage.getItem('helpdesk_token')).toBe('token-existente');
     localStorage.clear();
   });
+  it('separates current progress, measured outcomes and unknown legacy data',async()=>{
+    await setup(of({...summary,ticketsBySla:{IN_PROGRESS_ON_TIME:2,IN_PROGRESS_OVERDUE:1,RESOLVED_ON_TIME:3,RESOLVED_OVERDUE:4,CANCELLED:1,UNKNOWN:2}}));
+    expect(component.slaEntries.map(e=>e.value)).toEqual([2,1,3,4,1,2]);expect(text()).toContain('Em andamento atrasado');expect(text()).toContain('Resolvido fora do prazo');expect(text()).toContain('Sem medição confiável');
+  });
 });

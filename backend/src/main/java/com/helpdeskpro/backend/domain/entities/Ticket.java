@@ -31,6 +31,25 @@ public class Ticket {
     @Column(name = "id")
     private Long id;
 
+    @jakarta.persistence.Version
+    @Column(nullable = false)
+    private Long version = 0L;
+
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+    @Column(name = "sla_resolution_deadline")
+    private Instant slaResolutionDeadline;
+
+    public Instant getResolvedAt() { return resolvedAt; }
+    public Instant getSlaResolutionDeadline() { return slaResolutionDeadline; }
+    public void recordSlaResolution(Instant resolvedAt, Instant deadline) {
+        if (this.resolvedAt == null && this.slaResolutionDeadline == null && deadline != null) {
+            this.resolvedAt = resolvedAt; this.slaResolutionDeadline = deadline;
+        }
+    }
+
+    public Long getVersion() { return version; }
+
     @Column(name = "title", nullable = false)
     private String title;
 
@@ -116,10 +135,29 @@ public class Ticket {
         this.attachmentData = null;
     }
 
+    public Ticket(Long id, String title, String description, String solution,
+                  TicketStatus status, TicketCategory category, TicketPriority priority,
+                  User requester, User technician, Asset asset, Instant createdAt, Instant updatedAt,
+                  String attachmentName, String attachmentContentType, Long version) {
+        this(id, title, description, solution, status, category, priority, requester, technician,
+                asset, createdAt, updatedAt, attachmentName, attachmentContentType);
+        this.version = version;
+    }
+
+    public Ticket(Long id, String title, String description, String solution,
+                  TicketStatus status, TicketCategory category, TicketPriority priority,
+                  User requester, User technician, Asset asset, Instant createdAt, Instant updatedAt,
+                  String attachmentName, String attachmentContentType, Long version,
+                  Instant resolvedAt, Instant slaResolutionDeadline) {
+        this(id, title, description, solution, status, category, priority, requester, technician,
+                asset, createdAt, updatedAt, attachmentName, attachmentContentType, version);
+        this.resolvedAt = resolvedAt; this.slaResolutionDeadline = slaResolutionDeadline;
+    }
+
     @PrePersist
     public void prePersist() {
-        this.createdAt = Instant.now();
-        this.updatedAt = Instant.now();
+        if (this.createdAt == null) this.createdAt = Instant.now();
+        if (this.updatedAt == null) this.updatedAt = this.createdAt;
         if (this.status == null) {
             this.status = TicketStatus.CRIADO;
         }

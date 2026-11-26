@@ -24,7 +24,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Override
     @Query("select new com.helpdeskpro.backend.domain.entities.Ticket("
             + "t.id, t.title, t.description, t.solution, t.status, t.category, t.priority, "
-            + "r, tech, a, t.createdAt, t.updatedAt, t.attachmentName, t.attachmentContentType) "
+            + "r, tech, a, t.createdAt, t.updatedAt, t.attachmentName, t.attachmentContentType, t.version, t.resolvedAt, t.slaResolutionDeadline) "
             + "from Ticket t "
             + "left join t.requester r "
             + "left join t.technician tech "
@@ -33,7 +33,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("select new com.helpdeskpro.backend.domain.entities.Ticket("
             + "t.id, t.title, t.description, t.solution, t.status, t.category, t.priority, "
-            + "r, tech, a, t.createdAt, t.updatedAt, t.attachmentName, t.attachmentContentType) "
+            + "r, tech, a, t.createdAt, t.updatedAt, t.attachmentName, t.attachmentContentType, t.version, t.resolvedAt, t.slaResolutionDeadline) "
             + "from Ticket t "
             + "left join t.requester r "
             + "left join t.technician tech "

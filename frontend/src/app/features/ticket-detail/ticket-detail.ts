@@ -1,3 +1,4 @@
+import { slaLabel, slaOverdue, slaWithin, slaDelay, brazilDate } from '../../core/models/ticket-sla';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -22,6 +23,12 @@ import {
   templateUrl: './ticket-detail.html',
 })
 export class TicketDetail implements OnInit, OnDestroy {
+  readonly slaLabel = slaLabel;
+  readonly slaOverdue = slaOverdue;
+  readonly slaWithin = slaWithin;
+  readonly slaDelay = slaDelay;
+  readonly brazilDate = brazilDate;
+
   ticket: TicketResponse | null = null;
   comments: TicketCommentResponse[] = [];
   auditEntries: TicketAuditResponse[] = [];
@@ -29,6 +36,24 @@ export class TicketDetail implements OnInit, OnDestroy {
   attachmentUrl: string | null = null;
 
   selectedTechnicianId: number | null = null;
+  isEditingAssignment = false;
+  assignmentReason = '';
+  assignmentValidationError: string | null = null;
+  techniciansError: string | null = null;
+  get canAssignTechnician(): boolean {
+    return !!this.ticket && ['CRIADO','ABERTO','EM_ATENDIMENTO','AGUARDANDO_USUARIO'].includes(this.ticket.status);
+  }
+  get eligibleTechnicians(): UserSummary[] {
+    return this.technicians.filter(t=>t.role === 'TECHNICIAN' && t.active !== false && t.id !== this.ticket?.technicianId);
+  }
+  startTransfer(): void {
+    this.isEditingAssignment = true; this.assignmentReason = ''; this.selectedTechnicianId = null;
+    this.assignmentValidationError = null; this.operationErrorMessage = null; this.operationSuccessMessage = null;
+  }
+  cancelTransfer(): void {
+    if(this.isAssigningTechnician)return;
+    this.isEditingAssignment = false; this.assignmentReason = ''; this.selectedTechnicianId = null; this.assignmentValidationError = null;
+  }
   selectedStatus: TicketStatus = 'CRIADO';
   solutionText = '';
   newCommentContent = '';
@@ -56,6 +81,7 @@ export class TicketDetail implements OnInit, OnDestroy {
   commentSubmitErrorMessage: string | null = null;
   auditErrorMessage: string | null = null;
   attachmentErrorMessage: string | null = null;
+  hasConflict = false;
   operationErrorMessage: string | null = null;
   operationSuccessMessage: string | null = null;
 
@@ -101,6 +127,19 @@ export class TicketDetail implements OnInit, OnDestroy {
 
   get canManageTicket(): boolean {
     return this.canViewAudit;
+  }
+
+  get canUpdateStatus(): boolean {
+    return this.canManageTicket && (!this.isTechnician || this.ticket?.technicianId === this.currentUserId);
+  }
+
+  reloadAfterConflict(): void {
+    if (!this.ticket) return;
+    this.hasConflict = false;
+    this.cancelTransfer();
+    this.operationErrorMessage = null;
+    this.loadTicket(this.ticket.id);
+    this.loadAudit(this.ticket.id);
   }
 
   get isRequester(): boolean {
@@ -209,10 +248,12 @@ export class TicketDetail implements OnInit, OnDestroy {
     this.ticketService.getTechnicians().subscribe({
       next: (techs) => {
         this.technicians = techs;
+        this.techniciansError = null;
         this.cdr.markForCheck();
       },
       error: () => {
         this.technicians = [];
+        this.techniciansError = 'Não foi possível carregar os técnicos. Recarregue o chamado para tentar novamente.';
         this.cdr.markForCheck();
       },
     });
@@ -280,27 +321,40 @@ export class TicketDetail implements OnInit, OnDestroy {
   }
 
   onAssignTechnician(): void {
-    if (!this.ticket || !this.selectedTechnicianId || this.isAssigningTechnician) {
+    if (!this.ticket || !this.selectedTechnicianId || this.isAssigningTechnician || this.isUpdatingStatus || !this.canAssignTechnician) {
       return;
     }
 
+    this.assignmentValidationError = null;
+    const transferring = this.ticket.technicianId !== null;
+    if (transferring && (!this.assignmentReason.trim() || this.assignmentReason.length > 2000)) {
+      this.assignmentValidationError = 'Informe uma justificativa de até 2000 caracteres para a transferência.';
+      return;
+    }
     this.isAssigningTechnician = true;
     this.operationErrorMessage = null;
+    this.hasConflict = false;
     this.operationSuccessMessage = null;
 
     const techId = Number(this.selectedTechnicianId);
 
-    this.ticketService.assignTechnician(this.ticket.id, techId).subscribe({
+    const request = transferring
+      ? this.ticketService.assignTechnician(this.ticket.id, techId, this.ticket.version, this.assignmentReason.trim())
+      : this.ticketService.assignTechnician(this.ticket.id, techId, this.ticket.version);
+    request.subscribe({
       next: (updatedTicket) => {
         this.ticket = updatedTicket;
         this.syncFormFromTicket(updatedTicket);
         this.isAssigningTechnician = false;
-        this.operationSuccessMessage = 'Técnico atribuído com sucesso.';
+        this.operationSuccessMessage = transferring ? 'Chamado transferido com sucesso.' : 'Técnico atribuído com sucesso.';
+        this.isEditingAssignment = false; this.assignmentReason = ''; this.assignmentValidationError = null;
         this.loadAudit(updatedTicket.id);
+        this.loadTechnicians();
         this.cdr.markForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.isAssigningTechnician = false;
+        this.hasConflict = error.status === 409;
         this.operationErrorMessage =
           error.error?.message || 'Não foi possível atribuir o técnico ao chamado.';
         this.cdr.markForCheck();
@@ -309,21 +363,22 @@ export class TicketDetail implements OnInit, OnDestroy {
   }
 
   onUpdateStatus(): void {
-    if (!this.ticket || !this.selectedStatus || this.isUpdatingStatus) {
+    if (!this.ticket || !this.selectedStatus || this.isUpdatingStatus || this.isEditingAssignment || (!this.isRequester && !this.canUpdateStatus)) {
       return;
     }
 
     this.isUpdatingStatus = true;
     this.operationErrorMessage = null;
+    this.hasConflict = false;
     this.operationSuccessMessage = null;
 
     const solutionPayload =
-      this.shouldShowSolutionField && this.solutionText.trim().length > 0
+      !this.isRequester && this.shouldShowSolutionField && this.solutionText.trim().length > 0
         ? this.solutionText.trim()
         : null;
 
     this.ticketService
-      .updateTicketStatus(this.ticket.id, this.selectedStatus, solutionPayload)
+      .updateTicketStatus(this.ticket.id, this.selectedStatus, solutionPayload, this.ticket.version)
       .subscribe({
         next: (updatedTicket) => {
           this.ticket = updatedTicket;
@@ -335,6 +390,7 @@ export class TicketDetail implements OnInit, OnDestroy {
         },
         error: (error: HttpErrorResponse) => {
           this.isUpdatingStatus = false;
+          this.hasConflict = error.status === 409;
           this.operationErrorMessage =
             error.error?.message || 'Não foi possível atualizar o status do chamado.';
           this.cdr.markForCheck();
@@ -478,7 +534,7 @@ export class TicketDetail implements OnInit, OnDestroy {
       return '-';
     }
     const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? dateStr : date.toLocaleString('pt-BR');
+    return isNaN(date.getTime()) ? dateStr : brazilDate(dateStr);
   }
 
   getRoleLabel(role: UserRole | null | undefined): string {

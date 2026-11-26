@@ -11,6 +11,9 @@ public class DashboardResponseDTO {
     private Map<TicketStatus, Long> ticketsByStatus;
     private Map<TicketPriority, Long> ticketsByPriority;
     private List<TechnicianTicketCountDTO> ticketsByTechnician;
+    private Map<com.helpdeskpro.backend.domain.enums.TicketSlaStatus, Long> ticketsBySla;
+    public Map<com.helpdeskpro.backend.domain.enums.TicketSlaStatus, Long> getTicketsBySla() { return ticketsBySla; }
+    public void setTicketsBySla(Map<com.helpdeskpro.backend.domain.enums.TicketSlaStatus, Long> value) { ticketsBySla = value; }
     private long unassignedTickets;
     private long assetsUnderMaintenance;
 

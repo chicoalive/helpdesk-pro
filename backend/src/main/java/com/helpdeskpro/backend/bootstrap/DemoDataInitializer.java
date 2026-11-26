@@ -331,10 +331,12 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private void assignAsUser(User actor, Long ticketId, Long technicianId) {
-        executeAs(actor, () -> ticketService.assignTechnician(
-                ticketId,
-                new TicketAssignTechnicianDTO(technicianId)
-        ));
+        executeAs(actor, () -> {
+            ticketRepository.flush();
+            var request = new TicketAssignTechnicianDTO(technicianId);
+            request.setExpectedVersion(ticketRepository.findById(ticketId).orElseThrow().getVersion());
+            return ticketService.assignTechnician(ticketId, request);
+        });
     }
 
     private void updateStatusAsUser(User actor, Long ticketId, TicketStatus status, String solution) {

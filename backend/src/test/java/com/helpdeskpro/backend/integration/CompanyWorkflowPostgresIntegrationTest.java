@@ -47,6 +47,11 @@ class CompanyWorkflowPostgresIntegrationTest {
     private String password;
     private String jwt;
     private JsonNode call(String method,String path,Object body,int status)throws Exception {
+        if (method.equals("PATCH") && path.endsWith("/technician") && body instanceof Map<?,?> original) {
+            var revised = new HashMap<String,Object>(); original.forEach((k,v)->revised.put(k.toString(),v));
+            revised.putIfAbsent("expectedVersion",jdbc.queryForObject("SELECT version FROM tickets WHERE id=?",Long.class,Long.valueOf(path.split("/")[2])));
+            body = revised;
+        }
         var request=switch(method){case "POST"->post(path);case "PUT"->put(path);case "PATCH"->patch(path);default->get(path);};
         if(jwt!=null)request.header("Authorization","Bearer "+jwt);
         if(body!=null)request.contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body));
@@ -73,7 +78,7 @@ class CompanyWorkflowPostgresIntegrationTest {
         mvc=MockMvcBuilders.webAppContextSetup(context).apply(SecurityMockMvcConfigurers.springSecurity()).build();
         password=System.getenv("HELPDESK_COMPANY_PASSWORD"); assertNotNull(password);
         assertEquals(0,users.count());
-        assertEquals(6L,jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Long.class));
+        assertEquals(9L,jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Long.class));
         assertTrue(provisioner.create("Helena Administradora","admin1@empresa.test",password.toCharArray()));
         assertFalse(provisioner.create("Blocked","blocked@empresa.test",password.toCharArray()));
         String admin=login("admin1@empresa.test");jwt=admin;
@@ -94,7 +99,7 @@ class CompanyWorkflowPostgresIntegrationTest {
         var attachment=new MockMultipartFile("file","evidencia.png","image/png",bytes);
         assertEquals(200,mvc.perform(multipart("/tickets/"+ticket+"/attachment").file(attachment).header("Authorization","Bearer "+jwt)).andReturn().getResponse().getStatus());
         call("POST","/tickets/"+ticket+"/comments",Map.of("content","Ocorrência registrada pelo funcionário."),201);
-        jwt=admin;call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech1.getId()),200);
+        jwt=admin;call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech1.getId(),"justification","Responsável anterior perdeu o perfil"),200);
         String technician=login(tech1.getEmail());jwt=technician;
         call("GET","/tickets/"+ticket,null,200);
         call("PATCH","/tickets/"+ticket+"/status",Map.of("status","EM_ATENDIMENTO"),200);
@@ -117,10 +122,9 @@ class CompanyWorkflowPostgresIntegrationTest {
         state(tech1,false,200);jwt=technician;call("GET","/tickets",null,401);jwt=null;call("POST","/auth/login",Map.of("email",tech1.getEmail(),"password",password),401);
         jwt=admin;state(req1,false,200);assertEquals(before,tables.stream().map(this::fingerprint).toList());
         call("GET","/tickets/"+ticket,null,200);call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech1.getId()),400);
-        call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech2.getId()),200);
+        call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech2.getId(),"justification","Continuidade do atendimento"),200);
         state(tech1,true,200);jwt=technician;call("GET","/tickets",null,401);jwt=login(tech1.getEmail());call("GET","/tickets",null,200);
-        jwt=login(tech2.getEmail());call("PATCH","/tickets/"+ticket+"/status",Map.of("status","RESOLVIDO","solution","Configuração de rede corrigida."),200);
-        call("PATCH","/tickets/"+ticket+"/status",Map.of("status","FECHADO"),200);
+
         jwt=admin;
         assertTrue(Arrays.equals(bytes,jdbc.queryForObject("SELECT attachment_data FROM tickets WHERE id=?",byte[].class,ticket)));
         assertEquals(2L,jdbc.queryForObject("SELECT count(*) FROM ticket_comments WHERE ticket_id=?",Long.class,ticket));
@@ -137,7 +141,9 @@ class CompanyWorkflowPostgresIntegrationTest {
         state(users.findByEmail("admin1@empresa.test").orElseThrow(),false,400);
         // Existing assignments must remain manageable after a technician changes role.
         call("PUT","/users/"+tech2.getId(),Map.of("name",tech2.getName(),"email",tech2.getEmail(),"role","REQUESTER","expectedVersion",0),200);
-        call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech1.getId()),200);
+        call("PATCH","/tickets/"+ticket+"/technician",Map.of("technicianId",tech1.getId(),"justification","Continuidade do atendimento"),200);
+        jwt=login(tech1.getEmail());call("PATCH","/tickets/"+ticket+"/status",Map.of("status","RESOLVIDO","solution","Configuração de rede corrigida."),200);
+        call("PATCH","/tickets/"+ticket+"/status",Map.of("status","FECHADO"),200);
         jwt=login(req3.getEmail());
         long raceTicket=call("POST","/tickets",Map.of("title","Atribuição concorrente","description","Teste de dois atendentes","category","DUVIDA"),201).get("id").asLong();
         jwt=admin;
@@ -155,7 +161,7 @@ class CompanyWorkflowPostgresIntegrationTest {
     private int assignConcurrently(String admin,long ticket,long technician,CyclicBarrier barrier)throws Exception {
         barrier.await(10,TimeUnit.SECONDS);
         return mvc.perform(patch("/tickets/"+ticket+"/technician").header("Authorization","Bearer "+admin)
-            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("technicianId",technician))))
+            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("technicianId",technician,"expectedVersion",0L))))
             .andReturn().getResponse().getStatus();
     }
 }

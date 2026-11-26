@@ -382,4 +382,15 @@ describe('TicketService', () => {
       {id:3,name:'Requester',role:'REQUESTER',active:true},
     ]);
   });
+
+  it('sends the displayed revision for both status and assignment mutations',()=>{
+    service.updateTicketStatus(10,'EM_ATENDIMENTO',null,5).subscribe();
+    const status=httpMock.expectOne('/api/tickets/10/status');expect(status.request.body.expectedVersion).toBe(5);status.flush({});
+    service.assignTechnician(10,2,6).subscribe();const assignment=httpMock.expectOne('/api/tickets/10/technician');
+    expect(assignment.request.body.expectedVersion).toBe(6);assignment.flush({});
+  });
+
+  it('sends the transfer reason without changing the official assignment endpoint',()=>{
+    service.assignTechnician(10,3,7,'  Cobertura de ausência  ').subscribe();const r=httpMock.expectOne('/api/tickets/10/technician');expect(r.request.method).toBe('PATCH');expect(r.request.body).toEqual({technicianId:3,expectedVersion:7,justification:'Cobertura de ausência'});r.flush({});
+  });
 });

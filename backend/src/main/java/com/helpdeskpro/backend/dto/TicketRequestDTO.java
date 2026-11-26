@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 public class TicketRequestDTO {
 
     @NotBlank(message = "O título é obrigatório")
+    @jakarta.validation.constraints.Size(max = 255, message = "O título deve ter no máximo 255 caracteres")
     private String title;
 
     @NotBlank(message = "A descrição é obrigatória")

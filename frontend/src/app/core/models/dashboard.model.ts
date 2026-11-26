@@ -7,6 +7,7 @@ export interface TechnicianTicketCount {
 }
 
 export interface DashboardResponse {
+  ticketsBySla?: Partial<Record<import('./ticket-sla').TicketSlaStatus, number>>;
   ticketsByStatus: Record<TicketStatus, number>;
   ticketsByPriority: Record<TicketPriority, number>;
   ticketsByTechnician: TechnicianTicketCount[];

@@ -18,6 +18,7 @@ export class DashboardSummary implements OnInit {
   isLoading = false;
   errorMessage: string | null = null;
 
+  slaEntries: DashboardEntry[] = [];
   statusEntries: DashboardEntry[] = [];
   priorityEntries: DashboardEntry[] = [];
   technicians: TechnicianTicketCount[] = [];
@@ -40,6 +41,8 @@ export class DashboardSummary implements OnInit {
 
     this.dashboardService.getSummary().subscribe({
       next: (data: DashboardResponse) => {
+        const labels: Record<string,string> = {IN_PROGRESS_ON_TIME:'Em andamento no prazo',IN_PROGRESS_OVERDUE:'Em andamento atrasado',RESOLVED_ON_TIME:'Resolvido no prazo',RESOLVED_OVERDUE:'Resolvido fora do prazo',CANCELLED:'Cancelado — não se aplica',UNKNOWN:'Sem medição confiável'};
+        this.slaEntries = Object.entries(data.ticketsBySla ?? {}).map(([key,value])=>({key:labels[key] ?? key,value:value ?? 0}));
         this.statusEntries = Object.entries(data.ticketsByStatus ?? {}).map(([key, value]) => ({ key, value }));
         this.priorityEntries = Object.entries(data.ticketsByPriority ?? {}).map(([key, value]) => ({ key, value }));
         this.technicians = data.ticketsByTechnician ?? [];
@@ -51,6 +54,7 @@ export class DashboardSummary implements OnInit {
       },
       error: (error: HttpErrorResponse) => {
         this.hasData = false;
+        this.slaEntries = [];
         this.statusEntries = [];
         this.priorityEntries = [];
         this.technicians = [];

@@ -121,11 +121,11 @@ class UserEditingPostgresIntegrationTest {
         assertEquals(401,mvc.perform(get("/assets/available").header("Authorization","Bearer "+requesterJwt)).andReturn().getResponse().getStatus());
         assertEquals(200,mvc.perform(get("/tickets/1").header("Authorization","Bearer "+adminJwt)).andReturn().getResponse().getStatus());
         assertEquals(400,mvc.perform(patch("/tickets/1/technician").header("Authorization","Bearer "+adminJwt)
-            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("technicianId",technician.getId())))).andReturn().getResponse().getStatus());
+            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("technicianId",technician.getId(),"expectedVersion",0)))).andReturn().getResponse().getStatus());
         jdbc.execute("SELECT setval(pg_get_serial_sequence('ticket_audit_logs','id'), (SELECT max(id) FROM ticket_audit_logs))");
         User replacement=create(UserRole.TECHNICIAN);
         assertEquals(200,mvc.perform(patch("/tickets/1/technician").header("Authorization","Bearer "+adminJwt)
-            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("technicianId",replacement.getId())))).andReturn().getResponse().getStatus());
+            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("technicianId",replacement.getId(),"expectedVersion",0,"justification","Substituição de técnico inativo")))).andReturn().getResponse().getStatus());
         assertEquals(replacement.getId(),jdbc.queryForObject("SELECT technician_id FROM tickets WHERE id=1",Long.class));
         assertEquals(before.get(1),fingerprint("assets"));
         assertEquals(before.get(2),fingerprint("ticket_comments"));

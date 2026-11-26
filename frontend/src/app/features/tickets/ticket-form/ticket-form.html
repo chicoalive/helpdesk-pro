@@ -32,12 +32,15 @@
             id="title"
             type="text"
             formControlName="title"
+            maxlength="255"
+            [attr.aria-invalid]="title?.invalid && title?.touched"
+            [attr.aria-describedby]="title?.invalid && title?.touched ? 'title-error' : null"
             placeholder="Ex: Não consigo acessar o sistema"
             class="form-input"
             [class.input-error]="title?.invalid && title?.touched"
           />
           @if (title?.invalid && title?.touched) {
-            <span class="error-message">O título do chamado é obrigatório.</span>
+            <span class="error-message" id="title-error">{{ title?.hasError('maxlength') ? 'O título deve ter no máximo 255 caracteres.' : 'O título do chamado é obrigatório.' }}</span>
           }
         </div>
 

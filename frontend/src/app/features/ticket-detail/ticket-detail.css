@@ -57,3 +57,5 @@
 .comment-form-actions{display:flex;justify-content:flex-end}
 @media (max-width:640px){.ticket-detail-container{padding:1.25rem 1rem}.ticket-header{flex-direction:column;align-items:flex-start}.comment-date{margin-left:0;width:100%}}
 @media print{:host{background:#fff;min-height:auto}.ticket-detail-container{padding:0}.print-brand{display:block}.detail-card{box-shadow:none;margin:0}}
+
+#transferReason{box-sizing:border-box;max-width:100%}

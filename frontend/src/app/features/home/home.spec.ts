@@ -523,4 +523,12 @@ describe('Home', () => {
     expect(tbodyText).toContain('INCIDENTE_SISTEMA');
     expect(tbodyText).toContain('SOLICITACAO_ACESSO');
   });
+  it('shows closed overdue outcome and cancelled exclusion in the list',async()=>{
+    ticketServiceSpy.getTickets.mockReturnValue(of([
+      {...mockTickets[0],status:'FECHADO',slaStatus:'RESOLVED_OVERDUE',slaBreached:false,slaDelaySeconds:3600,resolvedAt:'2026-09-26T11:00:00Z'},
+      {...mockTickets[1],status:'CANCELADO',slaStatus:'CANCELLED',slaBreached:false,slaDelaySeconds:null},
+    ]));component.loadTickets();fixture.changeDetectorRef.markForCheck();fixture.detectChanges();await fixture.whenStable();
+    expect(fixture.nativeElement.textContent).toContain('Resolvido fora do prazo');expect(fixture.nativeElement.textContent).toContain('Cancelado — não se aplica');expect(fixture.nativeElement.textContent).toContain('Atraso: 1 h');
+    expect(fixture.nativeElement.textContent).not.toContain('Dentro do SLA');
+  });
 });

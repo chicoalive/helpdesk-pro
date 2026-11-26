@@ -86,15 +86,9 @@
             <td>{{ ticket.priority }}</td>
             <td>{{ ticket.status }}</td>
             <td>
-              @if (ticket.slaBreached) {
-                <span class="sla-badge sla-breached">
-                  {{ isRequester ? 'Prazo ultrapassado' : 'SLA atrasado' }}
-                </span>
-              } @else if (ticket.slaDeadline) {
-                <span class="sla-badge sla-within">
-                  {{ isRequester ? 'Dentro do prazo' : 'Dentro do SLA' }}
-                </span>
-              }
+              <span class="sla-badge" [class.sla-breached]="slaOverdue(ticket)" [class.sla-within]="slaWithin(ticket)">{{ slaLabel(ticket, isRequester) }}</span>
+              @if (ticket.slaDeadline) { <div class="sub-value">Prazo: {{ brazilDate(ticket.slaDeadline) }} (Brasília)</div> }
+              @if (slaDelay(ticket)) { <div class="sub-value">Atraso: {{ slaDelay(ticket) }}</div> }
             </td>
             <td class="col-actions">
               <a [routerLink]="['/tickets', ticket.id]" class="btn-details">Detalhes</a>

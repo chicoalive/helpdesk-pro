@@ -1,3 +1,4 @@
+import { slaLabel, slaOverdue, slaWithin, slaDelay, brazilDate } from '../../core/models/ticket-sla';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,6 +14,12 @@ import { DashboardSummary } from './dashboard-summary/dashboard-summary';
   templateUrl: './home.html',
 })
 export class Home implements OnInit {
+  readonly slaLabel = slaLabel;
+  readonly slaOverdue = slaOverdue;
+  readonly slaWithin = slaWithin;
+  readonly slaDelay = slaDelay;
+  readonly brazilDate = brazilDate;
+
   tickets: TicketResponse[] = [];
   errorMessage: string | null = null;
   isLoading = false;

@@ -14,6 +14,8 @@ public class TicketAuditLogResponseDTO {
     private String fieldName;
     private String oldValue;
     private String newValue;
+    private String justification;
+    public String getJustification() { return justification; }
     private Instant changedAt;
 
     public TicketAuditLogResponseDTO() {
@@ -34,7 +36,7 @@ public class TicketAuditLogResponseDTO {
     }
 
     public static TicketAuditLogResponseDTO fromEntity(TicketAuditLog auditLog) {
-        return new TicketAuditLogResponseDTO(
+        var dto = new TicketAuditLogResponseDTO(
                 auditLog.getId(),
                 auditLog.getTicket().getId(),
                 auditLog.getChangedBy().getId(),
@@ -45,6 +47,8 @@ public class TicketAuditLogResponseDTO {
                 auditLog.getNewValue(),
                 auditLog.getChangedAt()
         );
+        dto.justification = auditLog.getJustification();
+        return dto;
     }
 
     public Long getId() {

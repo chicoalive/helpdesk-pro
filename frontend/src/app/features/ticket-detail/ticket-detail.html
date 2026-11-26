@@ -95,29 +95,21 @@
         @if (ticket.slaDeadline) {
           <div class="info-item">
             <span class="info-label">
-              {{ isRequester ? 'Prazo estimado de atendimento' : 'Prazo do SLA' }}
+              {{ isRequester ? 'Prazo estimado de atendimento (Brasília)' : 'Prazo do SLA (Brasília)' }}
             </span>
             <span class="info-value">{{ formatDate(ticket.slaDeadline) }}</span>
           </div>
         }
 
-        @if (ticket.slaBreached || ticket.slaDeadline) {
-          <div class="info-item">
-            <span class="info-label">
-              {{ isRequester ? 'Situação do prazo' : 'Situação do SLA' }}
-            </span>
-            <span
-              class="status-badge"
-              [class.sla-breached]="ticket.slaBreached"
-              [class.sla-within]="!ticket.slaBreached"
-            >
-              @if (isRequester) {
-                {{ ticket.slaBreached ? 'Prazo de atendimento ultrapassado' : 'Dentro do prazo' }}
-              } @else {
-                {{ ticket.slaBreached ? 'SLA atrasado' : 'Dentro do SLA' }}
-              }
-            </span>
-          </div>
+        <div class="info-item">
+          <span class="info-label">{{ isRequester ? 'Situação do prazo' : 'Situação do SLA' }}</span>
+          <span class="status-badge" [class.sla-breached]="slaOverdue(ticket)" [class.sla-within]="slaWithin(ticket)">{{ slaLabel(ticket, isRequester, true) }}</span>
+          @if (slaDelay(ticket)) { <span class="info-value">{{ ticket.resolvedAt ? 'Atraso na resolução' : 'Atraso no momento da consulta' }}: {{ slaDelay(ticket) }}</span> }
+          @if (ticket.slaEvaluatedAt && !ticket.resolvedAt && ticket.status !== 'CANCELADO' && ticket.status !== 'RESOLVIDO' && ticket.status !== 'FECHADO') { <span class="sub-value">Consultado em {{ formatDate(ticket.slaEvaluatedAt) }} (Brasília)</span> }
+          @if ((ticket.status === 'RESOLVIDO' || ticket.status === 'FECHADO') && !ticket.resolvedAt) { <span class="sub-value">O prazo vigente na resolução não foi registrado. O prazo acima é apenas uma referência; não comprova cumprimento.</span> }
+        </div>
+        @if (ticket.resolvedAt) {
+          <div class="info-item"><span class="info-label">Resolução registrada (Brasília)</span><span class="info-value">{{ formatDate(ticket.resolvedAt) }}</span></div>
         }
 
         @if (ticket.updatedAt) {
@@ -163,7 +155,10 @@
     @if (isRequester && (canRequesterCancel || operationErrorMessage || operationSuccessMessage)) {
       <section class="comments-card requester-actions-card no-print">
         @if (operationErrorMessage) {
-          <div class="alert alert-error">{{ operationErrorMessage }}</div>
+          <div class="alert alert-error" role="alert">{{ operationErrorMessage }}</div>
+          @if (hasConflict) {
+            <button type="button" class="btn-action" (click)="reloadAfterConflict()">Recarregar chamado</button>
+          }
         }
         @if (operationSuccessMessage) {
           <div class="alert alert-info">{{ operationSuccessMessage }}</div>
@@ -192,7 +187,10 @@
         </header>
 
         @if (operationErrorMessage) {
-          <div class="alert alert-error">{{ operationErrorMessage }}</div>
+          <div class="alert alert-error" role="alert">{{ operationErrorMessage }}</div>
+          @if (hasConflict) {
+            <button type="button" class="btn-action" (click)="reloadAfterConflict()">Recarregar chamado</button>
+          }
         }
 
         @if (operationSuccessMessage) {
@@ -201,57 +199,36 @@
 
         <div class="management-grid">
           <div class="management-group">
-            <span class="info-label">Atribuir Técnico</span>
-            @if (ticket.technicianId === null || (!isTechnician && canManageTicket && (ticket.technicianActive === false || ticket.technicianAssignable === false))) {
-              <div class="management-row">
-                @if (isTechnician && currentUserId) {
-                  <button
-                    type="button"
-                    id="btnAssumeTicket"
-                    class="btn-action"
-                    [disabled]="isAssigningTechnician"
-                    (click)="onAssumeTicket()"
-                  >
-                    {{ isAssigningTechnician ? 'Assumindo...' : 'Assumir chamado' }}
-                  </button>
-                } @else {
-                  @if (technicians.length > 0) {
-                    <select
-                      id="assignTechnicianSelect" aria-label="Selecionar técnico"
-                      [(ngModel)]="selectedTechnicianId"
-                      class="management-input"
-                    >
-                      <option [ngValue]="null">Selecione um técnico</option>
-                      @for (tech of technicians; track tech.id) {
-                        <option [ngValue]="tech.id">{{ tech.name }} (#{{ tech.id }})</option>
-                      }
-                    </select>
-                  } @else {
-                    <input
-                      id="assignTechnicianInput" aria-label="ID do técnico"
-                      type="number"
-                      min="1"
-                      [(ngModel)]="selectedTechnicianId"
-                      placeholder="ID do técnico"
-                      class="management-input"
-                    />
-                  }
-                  <button
-                    type="button"
-                    id="btnAssignTechnician"
-                    class="btn-action"
-                    [disabled]="!selectedTechnicianId || isAssigningTechnician"
-                    (click)="onAssignTechnician()"
-                  >
-                    {{ isAssigningTechnician ? 'Atribuindo...' : 'Atribuir técnico' }}
-                  </button>
+            <span class="info-label">Técnico responsável</span>
+            <p class="text-muted">{{ ticket.technicianName || 'Não atribuído' }}</p>
+            @if (canAssignTechnician) {
+              @if (isTechnician) {
+                @if (ticket.technicianId === null && currentUserId) {
+                  <button type="button" id="btnAssumeTicket" class="btn-action" [disabled]="isAssigningTechnician" (click)="onAssumeTicket()">{{ isAssigningTechnician ? 'Assumindo...' : 'Assumir chamado' }}</button>
                 }
-              </div>
-            } @else {
-              <p class="text-muted">
-                Técnico já atribuído: <strong>{{ ticket.technicianName }}</strong>
-              </p>
-            }
+              } @else {
+                @if (ticket.technicianId !== null && !isEditingAssignment) {
+                  <button type="button" class="btn-action" (click)="startTransfer()">Transferir chamado</button>
+                } @else {
+                  @if (techniciansError) { <p class="alert alert-error" role="alert">{{ techniciansError }}</p> }
+                  @if (eligibleTechnicians.length > 0) {
+                    <label class="info-label" for="assignTechnicianSelect">{{ isEditingAssignment ? 'Novo técnico' : 'Selecionar técnico' }}</label>
+                    <select id="assignTechnicianSelect" aria-label="Selecionar técnico" class="management-input" [(ngModel)]="selectedTechnicianId" [disabled]="isAssigningTechnician">
+                      <option [ngValue]="null">Selecione um técnico</option>
+                      @for (tech of eligibleTechnicians; track tech.id) { <option [ngValue]="tech.id">{{ tech.name }}</option> }
+                    </select>
+                    @if (isEditingAssignment) {
+                      <label class="info-label" for="transferReason">Justificativa da transferência</label>
+                      <textarea id="transferReason" rows="3" maxlength="2000" class="management-input management-textarea" [(ngModel)]="assignmentReason" [disabled]="isAssigningTechnician" [attr.aria-describedby]="assignmentValidationError ? 'transferNotice transferError' : 'transferNotice'"></textarea>
+                      <p id="transferNotice">Ao salvar, confirme a mudança do responsável acima para o técnico selecionado. O histórico será preservado.</p>
+                      @if (assignmentValidationError) { <p id="transferError" class="alert alert-error" role="alert">{{ assignmentValidationError }}</p> }
+                    }
+                    <button type="button" id="btnAssignTechnician" class="btn-action" [disabled]="!selectedTechnicianId || isAssigningTechnician || isUpdatingStatus" (click)="onAssignTechnician()">{{ isAssigningTechnician ? 'Salvando...' : isEditingAssignment ? 'Salvar transferência' : 'Atribuir técnico' }}</button>
+                  } @else if (!techniciansError) { <p>Nenhum outro técnico ativo disponível.</p> }
+                  @if (isEditingAssignment) { <button type="button" class="btn-action" [disabled]="isAssigningTechnician" (click)="cancelTransfer()">Cancelar transferência</button> }
+                }
+              }
+            } @else { <p>Este estado não permite atribuição ou transferência.</p> }
           </div>
 
           <div class="management-group">
@@ -260,7 +237,7 @@
               <select
                 id="statusSelect"
                 [(ngModel)]="selectedStatus"
-                [disabled]="isTerminalStatus || isUpdatingStatus"
+                [disabled]="!canUpdateStatus || isTerminalStatus || isUpdatingStatus || isEditingAssignment"
                 class="management-input"
               >
                 @for (st of availableStatusOptions; track st) {
@@ -271,7 +248,7 @@
                 type="button"
                 id="btnUpdateStatus"
                 class="btn-action"
-                [disabled]="isTerminalStatus || isUpdatingStatus"
+                [disabled]="!canUpdateStatus || isTerminalStatus || isUpdatingStatus || isEditingAssignment"
                 (click)="onUpdateStatus()"
               >
                 {{ isUpdatingStatus ? 'Salvando...' : 'Atualizar status' }}
@@ -284,6 +261,7 @@
               <label for="solutionInput" class="info-label">Solução Técnica</label>
               <textarea
                 id="solutionInput"
+                [disabled]="!canUpdateStatus"
                 rows="3"
                 [(ngModel)]="solutionText"
                 placeholder="Descreva a solução aplicada ao chamado..."
@@ -381,6 +359,7 @@
                 <span aria-label="para">→</span>
                 {{ formatAuditValue(entry.fieldName, entry.newValue) }}
               </p>
+              @if (entry.justification) { <p><strong>Justificativa:</strong> {{ entry.justification }}</p> }
             </article>
           } @empty {
             @if (!isLoadingAudit && !auditErrorMessage) {

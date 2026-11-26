@@ -131,4 +131,32 @@ class TicketSlaTest {
         assertTrue(TicketResponseDTO.fromEntity(old).isSlaBreached());
         assertFalse(TicketResponseDTO.fromEntity(recent).isSlaBreached());
     }
+    @Test void nanosecondBoundaryAndDelayRounding() {
+        Ticket t=ticket(TicketPriority.ALTA,TicketStatus.EM_ATENDIMENTO,CREATED_AT);
+        Instant deadline=CREATED_AT.plus(Duration.ofHours(4));
+        assertEquals("IN_PROGRESS_ON_TIME",TicketResponseDTO.fromEntity(t,deadline.minusNanos(1)).getSlaStatus().name());
+        assertEquals("IN_PROGRESS_ON_TIME",TicketResponseDTO.fromEntity(t,deadline).getSlaStatus().name());
+        var late=TicketResponseDTO.fromEntity(t,deadline.plusNanos(1));assertEquals("IN_PROGRESS_OVERDUE",late.getSlaStatus().name());assertEquals(1L,late.getSlaDelaySeconds());
+    }
+    @Test void legacyFinalStatesDoNotImplyCompliance() {
+        for(var status:java.util.List.of(TicketStatus.RESOLVIDO,TicketStatus.FECHADO)) {
+            var result=TicketResponseDTO.fromEntity(ticket(TicketPriority.ALTA,status,CREATED_AT),CREATED_AT.plus(Duration.ofDays(1)));
+            assertEquals("UNKNOWN",result.getSlaStatus().name());assertNull(result.getSlaDelaySeconds());assertFalse(result.isSlaBreached());
+        }
+    }
+    @Test void completedOutcomeIsStableWhenCurrentTimeAdvances() {
+        Ticket t=ticket(TicketPriority.ALTA,TicketStatus.RESOLVIDO,CREATED_AT);t.recordSlaResolution(CREATED_AT.plus(Duration.ofHours(5)),CREATED_AT.plus(Duration.ofHours(4)));
+        for(var now:java.util.List.of(CREATED_AT.plus(Duration.ofDays(1)),CREATED_AT.plus(Duration.ofDays(400)))) {
+            var result=TicketResponseDTO.fromEntity(t,now);assertEquals("RESOLVED_OVERDUE",result.getSlaStatus().name());assertEquals(3600L,result.getSlaDelaySeconds());assertFalse(result.isSlaBreached());
+        }
+    }
+    @Test void missingMetadataAndFutureCreationAreUnknown() {
+        assertEquals("UNKNOWN",TicketResponseDTO.fromEntity(ticket(null,TicketStatus.ABERTO,CREATED_AT),CREATED_AT).getSlaStatus().name());
+        assertEquals("UNKNOWN",TicketResponseDTO.fromEntity(ticket(TicketPriority.ALTA,TicketStatus.ABERTO,CREATED_AT),CREATED_AT.minusSeconds(1)).getSlaStatus().name());
+    }
+    @Test void cancelledHasNoComplianceResultOrDelay() {
+        var result=TicketResponseDTO.fromEntity(ticket(TicketPriority.ALTA,TicketStatus.CANCELADO,CREATED_AT),CREATED_AT.plus(Duration.ofDays(1)));
+        assertEquals("CANCELLED",result.getSlaStatus().name());assertNull(result.getSlaDelaySeconds());assertFalse(result.isSlaBreached());
+    }
+
 }

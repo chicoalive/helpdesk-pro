@@ -64,6 +64,9 @@ class TicketServiceTest {
     @Mock
     private jakarta.persistence.EntityManager entityManager;
 
+    @Mock
+    private java.time.Clock clock;
+
     @InjectMocks
     private TicketService ticketService;
 
@@ -74,12 +77,15 @@ class TicketServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(clock.instant()).thenReturn(java.time.Instant.parse("2026-11-24T12:00:00Z"));
         requester = new User("Usuario Solicitante", "user@helpdesk.com", "123", UserRole.REQUESTER);
         technician = new User("Tecnico Suporte", "tech@helpdesk.com", "123", UserRole.TECHNICIAN);
         admin = new User("Administrador", "admin@helpdesk.com", "123", UserRole.ADMIN);
         ReflectionTestUtils.setField(requester, "id", 1L);
         ReflectionTestUtils.setField(technician, "id", 2L);
         ReflectionTestUtils.setField(admin, "id", 3L);
+        org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(requester));
+        org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(admin));
         activeAsset = new Asset(1L, "NOTE-001", "Notebook", "Dell Latitude", AssetStatus.IN_USE);
     }
 
@@ -224,6 +230,7 @@ class TicketServiceTest {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         assertEquals(TicketStatus.CRIADO, ticket.getStatus());
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(2L);
+        dto.setExpectedVersion(0L);
 
         when(securityUtils.getCurrentUser()).thenReturn(technician);
         when(ticketRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ticket));
@@ -243,6 +250,7 @@ class TicketServiceTest {
     void assignTechnician_AsRequester_ThrowsException() {
         when(securityUtils.getCurrentUser()).thenReturn(requester);
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(2L);
+        dto.setExpectedVersion(0L);
 
         assertThrows(AccessDeniedException.class, () -> ticketService.assignTechnician(1L, dto));
     }
@@ -254,9 +262,9 @@ class TicketServiceTest {
         User nonTechUser = new User("Outro", "outro@helpdesk.com", "123", UserRole.REQUESTER);
         ReflectionTestUtils.setField(nonTechUser, "id", 5L);
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(5L);
+        dto.setExpectedVersion(0L);
 
-        when(securityUtils.getCurrentUser()).thenReturn(technician);
-        when(ticketRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ticket));
+        when(securityUtils.getCurrentUser()).thenReturn(admin);
         when(userRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(nonTechUser));
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
@@ -269,12 +277,12 @@ class TicketServiceTest {
         Ticket ticket = new Ticket("Titulo", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null);
         ticket.setTechnician(technician);
         TicketAssignTechnicianDTO dto = new TicketAssignTechnicianDTO(3L);
+        dto.setExpectedVersion(0L);
 
         when(securityUtils.getCurrentUser()).thenReturn(technician);
-        when(ticketRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(ticket));
 
-        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -> ticketService.assignTechnician(1L, dto));
-        assertEquals("O chamado já possui um técnico atribuído e não pode ser reatribuído.", ex.getMessage());
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class, () -> ticketService.assignTechnician(1L, dto));
+        assertEquals("Técnicos só podem assumir chamados para si mesmos.", ex.getMessage());
     }
 
     @Test

@@ -313,6 +313,7 @@ class HelpDeskApiIntegrationTest {
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.CRIADO);
 
             TicketAssignTechnicianDTO assignDTO = new TicketAssignTechnicianDTO(technician.getId());
+            assignDTO.setExpectedVersion(ticket.getVersion());
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
                             .header("Authorization", "Bearer " + token(technician))
@@ -467,9 +468,10 @@ class HelpDeskApiIntegrationTest {
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.CRIADO);
 
             TicketAssignTechnicianDTO assignDTO = new TicketAssignTechnicianDTO(nonTechUser.getId());
+            assignDTO.setExpectedVersion(ticket.getVersion());
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
-                            .header("Authorization", "Bearer " + token(technician))
+                            .header("Authorization", "Bearer " + adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(assignDTO)))
                     .andExpect(status().isBadRequest())
@@ -489,14 +491,15 @@ class HelpDeskApiIntegrationTest {
             ticketRepository.save(ticket);
 
             TicketAssignTechnicianDTO assignDTO = new TicketAssignTechnicianDTO(tech2.getId());
+            assignDTO.setExpectedVersion(ticket.getVersion());
 
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
                             .header("Authorization", "Bearer " + token(tech1))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(assignDTO)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.status", is(400)))
-                    .andExpect(jsonPath("$.message", is("O chamado já possui um técnico atribuído e não pode ser reatribuído.")));
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status", is(403)))
+                    .andExpect(jsonPath("$.message", is("Técnicos só podem assumir chamados para si mesmos.")));
         }
 
         @Test
@@ -588,12 +591,12 @@ class HelpDeskApiIntegrationTest {
             Ticket ticket = saveTicket("Chamado", "Desc", TicketCategory.DUVIDA, TicketPriority.BAIXA, requester, null, TicketStatus.CRIADO);
             TicketAssignTechnicianDTO techInexistente = new TicketAssignTechnicianDTO(999999L);
             mockMvc.perform(patch("/tickets/" + ticket.getId() + "/technician")
-                            .header("Authorization", "Bearer " + token(technician))
+                            .header("Authorization", "Bearer " + adminToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(techInexistente)))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)))
-                    .andExpect(jsonPath("$.message", is("Técnico não encontrado com o id: 999999")));
+                    .andExpect(jsonPath("$.message", is("Conta não encontrada para atribuição.")));
 
             // Requester inexistente na consulta de tickets por solicitante (consultado por Admin)
             mockMvc.perform(get("/tickets/requester/999999")

@@ -9,6 +9,9 @@
 
   @if (hasData) {
     <div class="cards-grid">
+      @if (slaEntries.length) {
+        <article class="card"><h2>SLA — andamento e resultado</h2><ul class="metric-list">@for (item of slaEntries; track item.key) {<li><span class="metric-label">{{ item.key }}</span><strong class="metric-value">{{ item.value }}</strong></li>}</ul></article>
+      }
       <article class="card card-status">
         <h2>Chamados por status</h2>
         <ul class="metric-list">

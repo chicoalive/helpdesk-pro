@@ -61,7 +61,7 @@ export class TicketForm implements OnInit {
   readonly ticketForm = new FormGroup({
     title: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required],
+      validators: [Validators.required, Validators.maxLength(255)],
     }),
     category: new FormControl<TicketCategory | ''>('', {
       nonNullable: true,

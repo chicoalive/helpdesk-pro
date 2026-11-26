@@ -45,8 +45,8 @@ export class TicketService {
     });
   }
 
-  assignTechnician(ticketId: number, technicianId: number): Observable<TicketResponse> {
-    const payload: TicketAssignTechnicianRequest = { technicianId };
+  assignTechnician(ticketId: number, technicianId: number, expectedVersion?: number, justification?: string): Observable<TicketResponse> {
+    const payload: TicketAssignTechnicianRequest = { technicianId, ...(expectedVersion === undefined ? {} : { expectedVersion }), ...(justification ? { justification: justification.trim() } : {}) };
     return this.http.patch<TicketResponse>(`${this.apiUrl}/${ticketId}/technician`, payload, {
       headers: this.getAuthHeaders(),
     });
@@ -56,9 +56,11 @@ export class TicketService {
     ticketId: number,
     status: TicketStatus,
     solution?: string | null,
+    expectedVersion?: number,
   ): Observable<TicketResponse> {
     const payload: TicketStatusUpdateRequest = {
       status,
+      ...(expectedVersion === undefined ? {} : { expectedVersion }),
       solution: solution && solution.trim() ? solution.trim() : null,
     };
     return this.http.patch<TicketResponse>(`${this.apiUrl}/${ticketId}/status`, payload, {

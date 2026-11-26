@@ -21,13 +21,15 @@ public class DashboardService {
 
     private final TicketRepository ticketRepository;
     private final AssetRepository assetRepository;
+    private final java.time.Clock clock;
 
-    public DashboardService(TicketRepository ticketRepository, AssetRepository assetRepository) {
+    public DashboardService(TicketRepository ticketRepository, AssetRepository assetRepository, java.time.Clock clock) {
+        this.clock = clock;
         this.ticketRepository = ticketRepository;
         this.assetRepository = assetRepository;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public DashboardResponseDTO getSummary() {
         Map<TicketStatus, Long> byStatus = new LinkedHashMap<>();
         for (TicketStatus status : TicketStatus.values()) {
@@ -54,6 +56,15 @@ public class DashboardService {
         long unassigned = ticketRepository.countByTechnicianIsNull();
         long underMaintenance = assetRepository.countByStatus(AssetStatus.UNDER_MAINTENANCE);
 
-        return new DashboardResponseDTO(byStatus, byPriority, byTechnician, unassigned, underMaintenance);
+        var bySla = new java.util.EnumMap<com.helpdeskpro.backend.domain.enums.TicketSlaStatus, Long>(com.helpdeskpro.backend.domain.enums.TicketSlaStatus.class);
+        for (var state : com.helpdeskpro.backend.domain.enums.TicketSlaStatus.values()) bySla.put(state, 0L);
+        var now = clock.instant();
+        for (var ticket : ticketRepository.findAll()) {
+            var state = com.helpdeskpro.backend.domain.TicketSla.assess(ticket, now).status();
+            bySla.merge(state, 1L, Long::sum);
+        }
+        var response = new DashboardResponseDTO(byStatus, byPriority, byTechnician, unassigned, underMaintenance);
+        response.setTicketsBySla(bySla);
+        return response;
     }
 }

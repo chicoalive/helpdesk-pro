@@ -68,6 +68,7 @@ describe('TicketDetail', () => {
 
   const mockTicket: TicketResponse = {
     id: 10,
+    version: 0,
     title: 'Falha no teclado',
     description: 'Teclado não responde a certas teclas',
     solution: 'Substituição do teclado realizada com sucesso',
@@ -138,6 +139,7 @@ describe('TicketDetail', () => {
             email: 'ana@helpdesk.com',
             role: 'TECHNICIAN',
           },
+          { id: 3, name: 'Outro Técnico', email: 'outro@empresa.test', role: 'TECHNICIAN', active: true },
         ]),
       ),
     };
@@ -204,7 +206,7 @@ describe('TicketDetail', () => {
     expect(compiled.textContent).toContain('Substituição do teclado realizada com sucesso');
     expect(compiled.textContent).toContain('Prazo do SLA');
     expect(compiled.textContent).toContain(component.formatDate(mockTicket.slaDeadline));
-    expect(compiled.textContent).toContain('Dentro do SLA');
+    expect(compiled.textContent).toContain('Sem medição histórica');
 
     // Comments check
     expect(compiled.textContent).toContain('Aguardando envio do periférico.');
@@ -297,6 +299,7 @@ describe('TicketDetail', () => {
     await setupTestBed('10');
     const breachedTicket: TicketResponse = {
       ...mockTicket,
+      status: 'EM_ATENDIMENTO',
       slaBreached: true,
     };
     ticketServiceSpy.getTicketById.mockReturnValue(of(breachedTicket));
@@ -325,7 +328,7 @@ describe('TicketDetail', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).not.toContain('Prazo do SLA');
-    expect(compiled.textContent).not.toContain('Situação do SLA');
+    expect(compiled.textContent).toContain('Sem medição histórica');
     expect(compiled.textContent).not.toContain('undefined');
   });
 
@@ -455,7 +458,7 @@ describe('TicketDetail', () => {
     expect(compiled.textContent).toContain('(Periférico)');
     expect(compiled.textContent).toContain('Prazo estimado de atendimento');
     expect(compiled.textContent).toContain('Situação do prazo');
-    expect(compiled.textContent).toContain('Dentro do prazo');
+    expect(compiled.textContent).toContain('Sem medição histórica');
     expect(compiled.textContent).not.toContain('SLA');
   });
 
@@ -485,6 +488,7 @@ describe('TicketDetail', () => {
     const breachedTicket: TicketResponse = {
       ...mockTicket,
       category: 'INCIDENTE_SISTEMA',
+      status: 'EM_ATENDIMENTO',
       slaBreached: true,
     };
     ticketServiceSpy.getTicketById.mockReturnValue(of(breachedTicket));
@@ -511,7 +515,7 @@ describe('TicketDetail', () => {
     expect(compiled.textContent).toContain('Ativo Vinculado');
     expect(compiled.textContent).toContain('Prazo do SLA');
     expect(compiled.textContent).toContain('Situação do SLA');
-    expect(compiled.textContent).toContain('Dentro do SLA');
+    expect(compiled.textContent).toContain('Sem medição histórica');
     expect(compiled.querySelector('.btn-print')).toBeNull();
   });
 
@@ -649,7 +653,7 @@ describe('TicketDetail', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10, 2);
+    expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10, 2, 0);
     expect(component.ticket?.technicianId).toBe(2);
     expect(component.ticket?.status).toBe('ABERTO');
     expect(component.operationSuccessMessage).toBe('Técnico atribuído com sucesso.');
@@ -689,6 +693,7 @@ describe('TicketDetail', () => {
       10,
       'RESOLVIDO',
       'Teclado substituído por novo equipamento',
+      0,
     );
     expect(component.ticket?.status).toBe('RESOLVIDO');
     expect(component.ticket?.solution).toBe('Teclado substituído por novo equipamento');
@@ -782,7 +787,7 @@ describe('TicketDetail', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10, 2);
+    expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10, 2, 0);
     expect(component.ticket?.status).toBe('ABERTO');
   });
 
@@ -813,7 +818,7 @@ describe('TicketDetail', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(ticketServiceSpy.updateTicketStatus).toHaveBeenCalledWith(10, 'CANCELADO', null);
+    expect(ticketServiceSpy.updateTicketStatus).toHaveBeenCalledWith(10, 'CANCELADO', null, 0);
     expect(component.ticket?.status).toBe('CANCELADO');
   });
 
@@ -833,11 +838,13 @@ describe('TicketDetail', () => {
 
   it('offers reassignment to an administrator when the assigned technician is inactive',async()=>{
     await setupTestBed();
-    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,technicianActive:false}));
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status:'EM_ATENDIMENTO',technicianActive:false}));
     component.loadTicket(10);
     fixture.changeDetectorRef.markForCheck();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('#btnAssignTechnician')).not.toBeNull();
+    component.loadTechnicians();component.startTransfer();fixture.changeDetectorRef.markForCheck();fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#assignTechnicianSelect')).not.toBeNull();
+    component.cancelTransfer();
     authServiceSpy.isTechnician.mockReturnValue(true);
     component.loadTicket(10);
     fixture.changeDetectorRef.markForCheck();
@@ -848,8 +855,79 @@ describe('TicketDetail', () => {
 
   it('allows an administrator to reassign after the former technician changes role',async()=>{
     await setupTestBed();
-    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,technicianActive:true,technicianAssignable:false}));
-    component.loadTicket(10); fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('#btnAssignTechnician')).not.toBeNull();
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status:'EM_ATENDIMENTO',technicianActive:true,technicianAssignable:false}));
+    component.loadTicket(10);component.loadTechnicians();component.startTransfer();fixture.changeDetectorRef.markForCheck();fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#assignTechnicianSelect')).not.toBeNull();
   });
+
+  it('keeps local input and offers explicit reload after a status conflict', async()=>{
+    await setupTestBed();
+    ticketServiceSpy.updateTicketStatus.mockReturnValue(throwError(()=>new HttpErrorResponse({status:409,error:{message:'Este chamado foi alterado por outra operação.'}})));
+    component.ticket={...mockTicket,status:'EM_ATENDIMENTO',version:7};component.selectedStatus='RESOLVIDO';component.solutionText='Solução ainda não salva';
+    component.onUpdateStatus();fixture.detectChanges();
+    expect(ticketServiceSpy.updateTicketStatus).toHaveBeenCalledWith(10,'RESOLVIDO','Solução ainda não salva',7);
+    expect(component.solutionText).toBe('Solução ainda não salva');expect(component.hasConflict).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Recarregar chamado');
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,version:8}));component.reloadAfterConflict();fixture.detectChanges();
+    expect(component.ticket?.version).toBe(8);expect(component.hasConflict).toBe(false);
+  });
+  it('prevents an unassigned technician from submitting status changes', async()=>{
+    await setupTestBed();authServiceSpy.isTechnician.mockReturnValue(true);authServiceSpy.getUserId.mockReturnValue(99);
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status:'ABERTO',technicianId:2}));component.loadTicket(10);fixture.detectChanges();
+    expect(component.canUpdateStatus).toBe(false);expect(fixture.nativeElement.querySelector('#btnUpdateStatus').disabled).toBe(true);
+    component.onUpdateStatus();expect(ticketServiceSpy.updateTicketStatus).not.toHaveBeenCalled();
+  });
+  it('never sends a technical solution when the requester cancels',async()=>{
+    await setupTestBed();authServiceSpy.isRequester.mockReturnValue(true);authServiceSpy.canViewDashboard.mockReturnValue(false);
+    component.ticket={...mockTicket,status:'ABERTO',version:4};component.solutionText='Solução existente que deve ser preservada';component.onCancelByRequester();
+    expect(ticketServiceSpy.updateTicketStatus).toHaveBeenCalledWith(10,'CANCELADO',null,4);
+  });
+  it('offers reload after an assignment conflict without claiming success',async()=>{
+    await setupTestBed();component.ticket={...mockTicket,status:'CRIADO',technicianId:null,version:2};component.selectedTechnicianId=2;
+    ticketServiceSpy.assignTechnician.mockReturnValue(throwError(()=>new HttpErrorResponse({status:409,error:{message:'Chamado alterado.'}})));
+    component.onAssignTechnician();fixture.detectChanges();expect(component.hasConflict).toBe(true);expect(component.operationSuccessMessage).toBeNull();
+    expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10,2,2);
+  });
+
+  it('requires a reason and sends selected owner and revision for an administrative transfer',async()=>{
+    await setupTestBed();ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status:'EM_ATENDIMENTO',version:7}));component.loadTicket(10);component.startTransfer();component.selectedTechnicianId=3;
+    component.onAssignTechnician();expect(ticketServiceSpy.assignTechnician).not.toHaveBeenCalled();expect(component.assignmentValidationError).toContain('justificativa');
+    component.assignmentReason='Cobertura de ausência';ticketServiceSpy.assignTechnician.mockReturnValue(of({...mockTicket,status:'EM_ATENDIMENTO',technicianId:3,technicianName:'Outro Técnico',version:8}));
+    component.onAssignTechnician();expect(ticketServiceSpy.assignTechnician).toHaveBeenCalledWith(10,3,7,'Cobertura de ausência');expect(component.ticket?.version).toBe(8);expect(component.isEditingAssignment).toBe(false);expect(component.operationSuccessMessage).toContain('transferido');
+  });
+  it('canceling a transfer clears its draft without making a request',async()=>{
+    await setupTestBed();component.startTransfer();component.selectedTechnicianId=3;component.assignmentReason='Rascunho';component.cancelTransfer();
+    expect(component.assignmentReason).toBe('');expect(component.isEditingAssignment).toBe(false);expect(ticketServiceSpy.assignTechnician).not.toHaveBeenCalled();
+  });
+  it('retains the reason after a real transfer conflict until explicit reload',async()=>{
+    await setupTestBed();component.ticket={...mockTicket,status:'EM_ATENDIMENTO',version:2};component.startTransfer();component.selectedTechnicianId=3;component.assignmentReason='Motivo que permanece';
+    ticketServiceSpy.assignTechnician.mockReturnValue(throwError(()=>new HttpErrorResponse({status:409,error:{message:'Recarregue o chamado.'}})));component.onAssignTechnician();
+    expect(component.hasConflict).toBe(true);expect(component.assignmentReason).toBe('Motivo que permanece');expect(component.operationSuccessMessage).toBeNull();
+  });
+  it.each(['RESOLVIDO','FECHADO','CANCELADO'] as const)('offers no assignment actions for %s',async status=>{
+    await setupTestBed();ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status,technicianId:null}));component.loadTicket(10);fixture.detectChanges();
+    expect(component.canAssignTechnician).toBe(false);expect(fixture.nativeElement.querySelector('#btnAssignTechnician')).toBeNull();expect(fixture.nativeElement.querySelector('#btnAssumeTicket')).toBeNull();expect(fixture.nativeElement.textContent).not.toContain('Transferir chamado');
+  });
+  it('does not replace a failed technician list with manual ID input',async()=>{
+    await setupTestBed();ticketServiceSpy.getTechnicians.mockReturnValue(throwError(()=>new HttpErrorResponse({status:500})));component.loadTechnicians();
+    ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status:'CRIADO',technicianId:null}));component.loadTicket(10);fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#assignTechnicianInput')).toBeNull();expect(fixture.nativeElement.textContent).toContain('Não foi possível carregar os técnicos');
+  });
+  it('shows the preserved transfer reason in the audit history',async()=>{
+    await setupTestBed();ticketAuditServiceSpy.getTicketAudit.mockReturnValue(of([{...mockAuditEntries[0],justification:'Cobertura de plantão'}]));component.loadAudit(10);fixture.detectChanges();expect(fixture.nativeElement.textContent).toContain('Cobertura de plantão');
+  });
+  it.each([
+    ['RESOLVED_ON_TIME','RESOLVIDO','Resolvido dentro do prazo',0],
+    ['RESOLVED_OVERDUE','FECHADO','Resolvido fora do prazo',3661],
+    ['CANCELLED','CANCELADO','Cancelado — não se aplica',null],
+    ['UNKNOWN','FECHADO','Sem medição histórica',null],
+  ] as const)('renders measured outcome %s without an active SLA label',async(slaStatus,status,label,delay)=>{
+    await setupTestBed();fixture.detectChanges();await fixture.whenStable();ticketServiceSpy.getTicketById.mockReturnValue(of({...mockTicket,status,slaStatus,slaDelaySeconds:delay,resolvedAt:slaStatus.startsWith('RESOLVED')?'2026-09-26T11:01:01Z':null}));component.loadTicket(10);
+    fixture.changeDetectorRef.markForCheck();fixture.detectChanges();expect(fixture.nativeElement.textContent).toContain(label);expect(fixture.nativeElement.textContent).not.toContain('Dentro do SLA');
+    if(delay)expect(fixture.nativeElement.textContent).toContain('1 h 1 min 1 s');
+  });
+  it('presents a UTC deadline in Brasilia independently of browser timezone',async()=>{
+    await setupTestBed();expect(component.formatDate('2026-01-01T12:00:00Z')).toContain('09:00:00');
+  });
+
 });

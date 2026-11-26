@@ -10,6 +10,11 @@ public class TicketStatusUpdateDTO {
 
     private String solution;
 
+    @jakarta.validation.constraints.PositiveOrZero(message = "A versão deve ser não negativa")
+    private Long expectedVersion;
+    public Long getExpectedVersion() { return expectedVersion; }
+    public void setExpectedVersion(Long expectedVersion) { this.expectedVersion = expectedVersion; }
+
     public TicketStatusUpdateDTO() {
     }
 

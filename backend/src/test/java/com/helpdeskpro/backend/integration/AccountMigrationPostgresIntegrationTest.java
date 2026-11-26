@@ -47,7 +47,7 @@ class AccountMigrationPostgresIntegrationTest {
         var result = new java.util.ArrayList<String>();
         for (String table : tables) {
             result.add(value(connection, "SELECT md5(COALESCE(string_agg("
-                    + "(to_jsonb(t)-'active'-'session_version'-'edit_version')::text, ',' ORDER BY id),'')) FROM " + table + " t"));
+                    + "(to_jsonb(t)-'active'-'session_version'-'edit_version'-'version'-'justification'-'resolved_at'-'sla_resolution_deadline')::text, ',' ORDER BY id),'')) FROM " + table + " t"));
         }
         return result;
     }
@@ -77,7 +77,7 @@ class AccountMigrationPostgresIntegrationTest {
                 statement.execute("INSERT INTO ticket_audit_logs(id,changed_at,field_name,changed_by_id,ticket_id) VALUES (1,now(),'status',1,1)");
             }
             var before = fingerprints(connection);
-            assertEquals(5, flyway(url).migrate().migrationsExecuted);
+            assertEquals(8, flyway(url).migrate().migrationsExecuted);
             assertEquals(before, fingerprints(connection));
             assertEquals("4", value(connection, "SELECT count(*) FROM users WHERE active AND session_version=0"));
             assertEquals("2", value(connection, "SELECT count(*) FROM users WHERE active AND role='ADMIN'"));
@@ -95,7 +95,7 @@ class AccountMigrationPostgresIntegrationTest {
     @Test
     void createsFreshSchemaWithoutDefaultAccounts() throws Exception {
         String url = isolatedDatabase();
-        assertEquals(6, flyway(url).migrate().migrationsExecuted);
+        assertEquals(9, flyway(url).migrate().migrationsExecuted);
         try (Connection connection = connect(url)) {
             assertEquals("0", value(connection, "SELECT count(*) FROM users"));
             assertEquals("2", value(connection, """

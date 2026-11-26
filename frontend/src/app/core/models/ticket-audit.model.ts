@@ -5,6 +5,7 @@ export interface TicketAuditResponse {
   changedByName: string;
   changedByEmail: string;
   fieldName: string;
+  justification?: string | null;
   oldValue: string | null;
   newValue: string | null;
   changedAt: string;

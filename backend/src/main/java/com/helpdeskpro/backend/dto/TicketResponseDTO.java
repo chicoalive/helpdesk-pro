@@ -11,6 +11,8 @@ import java.time.Instant;
 public class TicketResponseDTO {
 
     private Long id;
+    private Long version;
+    public Long getVersion() { return version; }
     private String title;
     private String description;
     private String solution;
@@ -38,6 +40,14 @@ public class TicketResponseDTO {
 
     private Instant slaDeadline;
     private boolean slaBreached;
+    private com.helpdeskpro.backend.domain.enums.TicketSlaStatus slaStatus;
+    private Instant resolvedAt;
+    private Instant slaEvaluatedAt;
+    private Long slaDelaySeconds;
+    public com.helpdeskpro.backend.domain.enums.TicketSlaStatus getSlaStatus() { return slaStatus; }
+    public Instant getResolvedAt() { return resolvedAt; }
+    public Instant getSlaEvaluatedAt() { return slaEvaluatedAt; }
+    public Long getSlaDelaySeconds() { return slaDelaySeconds; }
 
     private boolean hasAttachment;
     private String attachmentName;
@@ -84,6 +94,7 @@ public class TicketResponseDTO {
         dto.technicianAssignable = ticket.getTechnician() == null || (ticket.getTechnician().isEnabled()
                 && ticket.getTechnician().getRole() == com.helpdeskpro.backend.domain.UserRole.TECHNICIAN);
         dto.setId(ticket.getId());
+        dto.version = ticket.getVersion();
         dto.setTitle(ticket.getTitle());
         dto.setDescription(ticket.getDescription());
         dto.setSolution(ticket.getSolution());
@@ -93,9 +104,11 @@ public class TicketResponseDTO {
         dto.setCreatedAt(ticket.getCreatedAt());
         dto.setUpdatedAt(ticket.getUpdatedAt());
 
-        Instant slaDeadline = calculateSlaDeadline(ticket.getCreatedAt(), ticket.getPriority());
-        dto.setSlaDeadline(slaDeadline);
-        dto.setSlaBreached(isSlaBreached(slaDeadline, ticket.getStatus(), now));
+        var sla = com.helpdeskpro.backend.domain.TicketSla.assess(ticket, now);
+        dto.setSlaDeadline(sla.deadline());
+        dto.slaStatus = sla.status(); dto.slaDelaySeconds = sla.delaySeconds();
+        dto.resolvedAt = ticket.getResolvedAt(); dto.slaEvaluatedAt = now;
+        dto.setSlaBreached(sla.status() == com.helpdeskpro.backend.domain.enums.TicketSlaStatus.IN_PROGRESS_OVERDUE);
 
         boolean hasAttachment = (ticket.getAttachmentName() != null && !ticket.getAttachmentName().isBlank())
                 || (ticket.getAttachmentData() != null && ticket.getAttachmentData().length > 0);
@@ -132,7 +145,7 @@ public class TicketResponseDTO {
         if (createdAt == null || priority == null) {
             return null;
         }
-        return createdAt.plus(Duration.ofHours(priority.getSlaHours()));
+        return com.helpdeskpro.backend.domain.TicketSla.deadline(createdAt, priority);
     }
 
     /**

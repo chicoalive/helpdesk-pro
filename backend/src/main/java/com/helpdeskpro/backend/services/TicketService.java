@@ -51,11 +51,13 @@ public class TicketService {
     private final AssetRepository assetRepository;
     private final TicketAuditLogRepository ticketAuditLogRepository;
     private final SecurityUtils securityUtils;
+    private final java.time.Clock clock;
     private final jakarta.persistence.EntityManager entityManager;
 
     public TicketService(TicketRepository ticketRepository, UserRepository userRepository,
                          AssetRepository assetRepository, TicketAuditLogRepository ticketAuditLogRepository,
-                         SecurityUtils securityUtils, jakarta.persistence.EntityManager entityManager) {
+                         SecurityUtils securityUtils, jakarta.persistence.EntityManager entityManager, java.time.Clock clock) {
+        this.clock = clock;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.assetRepository = assetRepository;
@@ -88,6 +90,17 @@ public class TicketService {
             }
         }
 
+        long authenticatedVersion = requester.getSessionVersion();
+        // Serialize duplicate detection for this requester across all application instances.
+        User lockedRequester = userRepository.findByIdForUpdate(requester.getId())
+                .orElseThrow(() -> new AccessDeniedException("Conta não disponível."));
+        entityManager.refresh(lockedRequester);
+        if (!lockedRequester.isEnabled() || lockedRequester.getRole() != UserRole.REQUESTER
+                || lockedRequester.getSessionVersion() != authenticatedVersion) {
+            throw new AccessDeniedException("Sessão não disponível. Entre novamente.");
+        }
+        requester = lockedRequester;
+
         validateNoDuplicateActiveTicket(
                 requester.getId(),
                 dto.getCategory(),
@@ -104,11 +117,13 @@ public class TicketService {
                 requester,
                 asset
         );
+        ticket.setCreatedAt(clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS));
         ticket.setStatus(TicketStatus.CRIADO);
         ticket.setTechnician(null);
 
         Ticket savedTicket = ticketRepository.save(ticket);
-        return TicketResponseDTO.fromEntity(savedTicket);
+        ticketRepository.flush();
+        return response(savedTicket);
     }
 
     private void validateNoDuplicateActiveTicket(Long requesterId, TicketCategory category, Long assetId) {
@@ -153,7 +168,7 @@ public class TicketService {
         }
 
         return tickets.stream()
-                .map(TicketResponseDTO::fromEntity)
+                .map(this::response)
                 .toList();
     }
 
@@ -167,7 +182,7 @@ public class TicketService {
             throw new AccessDeniedException("Você não possui permissão para visualizar este chamado.");
         }
 
-        return TicketResponseDTO.fromEntity(ticket);
+        return response(ticket);
     }
 
     @Transactional(readOnly = true)
@@ -184,56 +199,67 @@ public class TicketService {
 
         return ticketRepository.findByRequesterId(requesterId)
                 .stream()
-                .map(TicketResponseDTO::fromEntity)
+                .map(this::response)
                 .toList();
     }
 
     @Transactional
     public TicketResponseDTO assignTechnician(Long ticketId, TicketAssignTechnicianDTO dto) {
-        User currentUser = securityUtils.getCurrentUser();
-        if (currentUser.getRole() == UserRole.REQUESTER) {
+        User authenticated = securityUtils.getCurrentUser();
+        if (authenticated.getRole() == UserRole.REQUESTER) {
             throw new AccessDeniedException("Solicitantes não possuem permissão para atribuir técnicos.");
         }
-
+        if (authenticated.getRole() == UserRole.TECHNICIAN && !authenticated.getId().equals(dto.getTechnicianId())) {
+            throw new AccessDeniedException("Técnicos só podem assumir chamados para si mesmos.");
+        }
+        long authenticatedVersion = authenticated.getSessionVersion();
+        // Follow the same administrator/user lock order as account administration.
+        userRepository.lockActiveAdministrators();
+        var locked = new java.util.HashMap<Long, User>();
+        for (Long id : java.util.stream.Stream.of(authenticated.getId(), dto.getTechnicianId()).distinct().sorted().toList()) {
+            User account = userRepository.findByIdForUpdate(id)
+                    .orElseThrow(() -> new UserNotFoundException("Conta não encontrada para atribuição."));
+            entityManager.refresh(account);
+            locked.put(id, account);
+        }
+        User currentUser = locked.get(authenticated.getId());
+        if (!currentUser.isEnabled() || currentUser.getSessionVersion() != authenticatedVersion
+                || (currentUser.getRole() != UserRole.ADMIN && currentUser.getRole() != UserRole.TECHNICIAN)) {
+            throw new AccessDeniedException("Sessão ou permissão alterada. Entre novamente.");
+        }
+        User technician = locked.get(dto.getTechnicianId());
+        if (!technician.isEnabled()) throw new BusinessRuleException("Técnicos inativos não podem receber novas atribuições.");
+        if (technician.getRole() != UserRole.TECHNICIAN) throw new BusinessRuleException("Apenas usuários com papel TECHNICIAN podem ser atribuídos como técnico.");
         Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
-
         entityManager.refresh(ticket);
-        if (ticket.getTechnician() != null && ((ticket.getTechnician().isEnabled()
-                && ticket.getTechnician().getRole() == UserRole.TECHNICIAN)
-                || currentUser.getRole() != UserRole.ADMIN)) {
-            throw new BusinessRuleException("O chamado já possui um técnico atribuído e não pode ser reatribuído.");
+        if (dto.getExpectedVersion() == null) {
+            throw new BusinessRuleException("Informe a versão atual do chamado (expectedVersion).");
         }
-
-        User technician = userRepository.findByIdForUpdate(dto.getTechnicianId())
-                .orElseThrow(() -> new UserNotFoundException("Técnico não encontrado com o id: " + dto.getTechnicianId()));
-
-        entityManager.refresh(technician);
-        if (!technician.isEnabled()) {
-            throw new BusinessRuleException("Técnicos inativos não podem receber novas atribuições.");
+        checkVersion(ticket, dto.getExpectedVersion());
+        if (!ACTIVE_STATUSES.contains(ticket.getStatus())) {
+            throw new BusinessRuleException("Chamados resolvidos, fechados ou cancelados não permitem atribuição ou transferência.");
         }
-        if (technician.getRole() != UserRole.TECHNICIAN) {
-            throw new BusinessRuleException("Apenas usuários com papel TECHNICIAN podem ser atribuídos como técnico.");
+        User previous = ticket.getTechnician();
+        if (currentUser.getRole() == UserRole.TECHNICIAN && previous != null) {
+            throw new AccessDeniedException("Somente administradores podem transferir chamados já atribuídos.");
         }
-
-        User previousTechnician = ticket.getTechnician();
+        if (previous != null && previous.getId().equals(technician.getId())) return response(ticket);
+        String reason = dto.getJustification() == null ? null : dto.getJustification().strip();
+        if (previous != null && (reason == null || reason.isBlank())) {
+            throw new BusinessRuleException("A justificativa é obrigatória para transferir o chamado.");
+        }
+        if (reason != null && reason.length() > 2000) throw new BusinessRuleException("A justificativa deve ter no máximo 2000 caracteres.");
         TicketStatus previousStatus = ticket.getStatus();
         ticket.setTechnician(technician);
-        if (ticket.getStatus() == TicketStatus.CRIADO) {
-            ticket.setStatus(TicketStatus.ABERTO);
-        }
-
-        if (!Objects.equals(previousTechnician != null ? previousTechnician.getId() : null, technician.getId())) {
-            recordAudit(ticket, currentUser, "technician",
-                    previousTechnician != null ? previousTechnician.getId().toString() : null,
-                    technician.getId().toString());
-        }
-        if (previousStatus != ticket.getStatus()) {
-            recordAudit(ticket, currentUser, "status", previousStatus.name(), ticket.getStatus().name());
-        }
-
-        Ticket updatedTicket = ticketRepository.save(ticket);
-        return TicketResponseDTO.fromEntity(updatedTicket);
+        if (ticket.getStatus() == TicketStatus.CRIADO) ticket.setStatus(TicketStatus.ABERTO);
+        ticketAuditLogRepository.save(new TicketAuditLog(ticket, currentUser, "technician",
+                previous == null ? null : previous.getId().toString(), technician.getId().toString(),
+                reason == null || reason.isBlank() ? null : reason, clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)));
+        if (previousStatus != ticket.getStatus()) recordAudit(ticket, currentUser, "status", previousStatus.name(), ticket.getStatus().name());
+        Ticket updated = ticketRepository.save(ticket);
+        ticketRepository.flush();
+        return response(updated);
     }
 
     @Transactional
@@ -244,6 +270,7 @@ public class TicketService {
         User currentUser = securityUtils.getCurrentUser();
 
         if (currentUser.getRole() == UserRole.REQUESTER) {
+            entityManager.refresh(ticket);
             if (!ticket.getRequester().getId().equals(currentUser.getId())) {
                 throw new AccessDeniedException("Você não possui permissão para alterar este chamado.");
             }
@@ -256,6 +283,11 @@ public class TicketService {
             }
         }
 
+        checkVersion(ticket, dto.getExpectedVersion());
+        if (currentUser.getRole() == UserRole.REQUESTER && dto.getSolution() != null
+                && !dto.getSolution().isBlank()) {
+            throw new AccessDeniedException("Solicitantes não podem registrar ou alterar a solução técnica.");
+        }
         TicketStatus currentStatus = ticket.getStatus();
         TicketStatus newStatus = dto.getStatus();
         String previousSolution = ticket.getSolution();
@@ -273,16 +305,31 @@ public class TicketService {
             }
         }
         if (currentStatus != newStatus) {
+            if (newStatus == TicketStatus.RESOLVIDO) {
+                ticket.recordSlaResolution(clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS),
+                        com.helpdeskpro.backend.domain.TicketSla.deadline(ticket.getCreatedAt(), ticket.getPriority()));
+            }
             ticket.setStatus(newStatus);
             recordAudit(ticket, currentUser, "status", currentStatus.name(), newStatus.name());
         }
 
         Ticket updatedTicket = ticketRepository.save(ticket);
-        return TicketResponseDTO.fromEntity(updatedTicket);
+        ticketRepository.flush();
+        return response(updatedTicket);
+    }
+
+    private TicketResponseDTO response(Ticket ticket) {
+        return TicketResponseDTO.fromEntity(ticket, clock.instant());
+    }
+
+    private void checkVersion(Ticket ticket, Long expected) {
+        if (expected != null && !expected.equals(ticket.getVersion())) {
+            throw new org.springframework.dao.OptimisticLockingFailureException("Chamado alterado por outra operação.");
+        }
     }
 
     private void recordAudit(Ticket ticket, User changedBy, String fieldName, String oldValue, String newValue) {
-        ticketAuditLogRepository.save(new TicketAuditLog(ticket, changedBy, fieldName, oldValue, newValue));
+        ticketAuditLogRepository.save(new TicketAuditLog(ticket, changedBy, fieldName, oldValue, newValue, null, clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)));
     }
 
     private void validateStatusTransition(TicketStatus currentStatus, TicketStatus newStatus, String solution) {
@@ -355,9 +402,10 @@ public class TicketService {
             throw new AccessDeniedException("Apenas solicitantes podem anexar imagens ao chamado.");
         }
 
-        Ticket ticket = ticketRepository.findById(ticketId)
+        Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Chamado não encontrado com o id: " + ticketId));
 
+        entityManager.refresh(ticket);
         if (!ticket.getRequester().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("Você não possui permissão para anexar imagem a este chamado.");
         }
@@ -389,7 +437,8 @@ public class TicketService {
         }
 
         Ticket savedTicket = ticketRepository.save(ticket);
-        return TicketResponseDTO.fromEntity(savedTicket);
+        ticketRepository.flush();
+        return response(savedTicket);
     }
 
     @Transactional(readOnly = true)

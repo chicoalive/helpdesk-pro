@@ -417,4 +417,9 @@ describe('TicketForm', () => {
     expect(existingLink.textContent).toContain('Ver chamado existente');
     expect(existingLink.getAttribute('href')).toBe('/tickets/15');
   });
+
+  it('rejects a title beyond the existing database limit before sending',async()=>{
+    await setupComponent();component.ticketForm.patchValue({title:'x'.repeat(256),description:'Descrição válida',category:'DUVIDA'});
+    component.onSubmit();expect(component.ticketForm.controls.title.hasError('maxlength')).toBe(true);expect(ticketServiceSpy.createTicket).not.toHaveBeenCalled();
+  });
 });

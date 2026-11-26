@@ -105,7 +105,7 @@ class TicketAuditIntegrationTest {
         mockMvc.perform(patch("/tickets/{id}/technician", ticket.getId())
                         .header("Authorization", bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TicketAssignTechnicianDTO(technician.getId()))))
+                        .content(objectMapper.writeValueAsString(java.util.Map.of("technicianId",technician.getId(),"expectedVersion",ticket.getVersion()))))
                 .andExpect(status().isOk());
 
         List<TicketAuditLog> entries = ticketAuditLogRepository.findByTicketIdOrderByChangedAtAsc(ticket.getId());

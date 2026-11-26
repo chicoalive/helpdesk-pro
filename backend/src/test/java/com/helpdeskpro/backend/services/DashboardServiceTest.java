@@ -30,8 +30,14 @@ class DashboardServiceTest {
     @Mock
     private AssetRepository assetRepository;
 
+    @Mock
+    private java.time.Clock clock;
+
     @InjectMocks
     private DashboardService dashboardService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void clockSetup() { org.mockito.Mockito.lenient().when(clock.instant()).thenReturn(java.time.Instant.parse("2026-11-24T12:00:00Z")); }
 
     @Test
     @DisplayName("Sem dados: todos os status e prioridades zerados, lista de técnicos vazia")

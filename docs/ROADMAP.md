@@ -4,13 +4,15 @@ Registro técnico da evolução incremental do projeto **HelpDesk Pro**, organiz
 
 ## Estado atual — Etapa 14
 
+**Atualização 14.2.1:** homologação operacional de chamados e permissões concluída, Flyway V7, 404 testes backend e 220 frontend aprovados. [Matriz e evidências](HOMOLOGACAO-14.2.1.md). A contagem abaixo da 14.1 representa seu checkpoint histórico.
+
 As Etapas **14.1A (instalação segura)**, **14.1B (gestão de contas e sessões)** e **14.1C (recuperação e redefinição de senhas)** estão implementadas e homologadas. Identidade pública: **Meu Assistente TI**. Suítes completas: **238 backend + 214 frontend**, sem falhas ou testes pulados na validação com PostgreSQL isolado.
 
 O bootstrap administrativo padrão descrito no histórico abaixo foi substituído por provisionamento local seguro; demonstração exige ativação explícita. Flyway V1–V6, auditoria transacional e revogação de sessões compõem a base atual.
 
 - [Homologação e pendências comerciais](HOMOLOGACAO-14.1.md).
 - [Continuidade administrativa e limites da contingência](CONTINUIDADE-ADMINISTRATIVA.md).
-- [Levantamento da Etapa 14.2](PLANO-14.2.md), ainda sem implementação.
+- [Etapa 14.2](PLANO-14.2.md), com 14.2.1 homologada e demais entregas pendentes.
 
 A Etapa 15, incluindo publicação externa e empregabilidade, permanece suspensa. Os registros a seguir descrevem a evolução histórica e podem conter comportamentos posteriormente substituídos.
 
@@ -98,3 +100,11 @@ A Etapa 15, incluindo publicação externa e empregabilidade, permanece suspensa
 - **R4 — Usabilidade e desempenho:** consultas leves em `TicketRepository` (`findAll` e `findByRequesterId`) que não carregam os bytes (`byte[] attachmentData`) de anexos durante listagens, inclusão do claim `name` no JWT para exibição do nome do usuário no cabeçalho e colunas de **Solicitante** e **Técnico** na tabela principal de chamados.
 - **R5 — Preparação segura para demonstração online:** remoção de fallback inseguro de segredo JWT no código-fonte e criação de `application-prod.properties` exigindo `JWT_SECRET`, configuração de CORS restrito a origens permitidas (`CORS_ALLOWED_ORIGINS`) em `SecurityConfig` e restauração automática de integridade das contas de demonstração em `DemoDataInitializer`.
 - **R6 — Homologação e documentação:** validação completa com **351 testes automatizados** (**185 no backend** + **166 no frontend**) e atualização de `README.md` e `docs/ROADMAP.md`.
+
+## Atualização de 24/11/2026 — 14.2.2
+
+Atribuição e transferência implementadas conforme [homologação 14.2.2](HOMOLOGACAO-14.2.2.md): 425 testes backend e 229 frontend aprovados. V8 acrescenta justificativa à auditoria, preservando V1–V7 e o histórico. Transferência administrativa somente em estados ativos; técnico somente assume chamado sem responsável. Próxima entrega: 14.2.3, com definição prévia da política de SLA. Etapa 15 suspensa.
+
+## Atualização de 24/11/2026 — 14.2.3
+
+[14.2.3 homologada e aplicada](HOMOLOGACAO-14.2.3.md): 454 testes backend e 244 frontend aprovados. V9 registra novas resoluções e o prazo vigente, sem preencher histórico antigo. Mantidas 4/24/72 horas corridas, sem pausa ou calendário comercial. SLA atual, resultado histórico, cancelamento e ausência de informação são apresentados separadamente. 14.2.4/14.2.5 permanecem pendentes; Etapa 15 suspensa.

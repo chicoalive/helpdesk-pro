@@ -180,12 +180,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
+    @ExceptionHandler({org.springframework.dao.OptimisticLockingFailureException.class, org.springframework.dao.PessimisticLockingFailureException.class})
     public ResponseEntity<ErrorResponse> handleEditConflict(
-            org.springframework.dao.OptimisticLockingFailureException ex, HttpServletRequest request) {
+            org.springframework.dao.ConcurrencyFailureException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
                 Instant.now(), 409, "Conflict",
-                "Esta conta foi alterada por outra operação. Recarregue a lista e tente novamente.",
+                request.getRequestURI().startsWith("/tickets/")
+                        ? "Este chamado foi alterado por outra operação. Recarregue os dados e tente novamente."
+                        : "Esta conta foi alterada por outra operação. Recarregue a lista e tente novamente.",
                 request.getRequestURI()));
     }
 

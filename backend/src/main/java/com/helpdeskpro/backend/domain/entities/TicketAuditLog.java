@@ -40,6 +40,10 @@ public class TicketAuditLog {
     @Column(name = "new_value", columnDefinition = "TEXT")
     private String newValue;
 
+    @Column(columnDefinition = "TEXT")
+    private String justification;
+    public String getJustification() { return justification; }
+
     @Column(name = "changed_at", nullable = false, updatable = false)
     private Instant changedAt;
 
@@ -52,6 +56,16 @@ public class TicketAuditLog {
         this.fieldName = fieldName;
         this.oldValue = oldValue;
         this.newValue = newValue;
+    }
+
+    public TicketAuditLog(Ticket ticket, User actor, String fieldName, String oldValue, String newValue, String justification) {
+        this(ticket, actor, fieldName, oldValue, newValue);
+        this.justification = justification;
+    }
+
+    public TicketAuditLog(Ticket ticket, User actor, String fieldName, String oldValue, String newValue, String justification, Instant changedAt) {
+        this(ticket, actor, fieldName, oldValue, newValue, justification);
+        this.changedAt = changedAt;
     }
 
     @PrePersist
