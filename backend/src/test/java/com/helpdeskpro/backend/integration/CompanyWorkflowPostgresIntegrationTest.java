@@ -78,7 +78,7 @@ class CompanyWorkflowPostgresIntegrationTest {
         mvc=MockMvcBuilders.webAppContextSetup(context).apply(SecurityMockMvcConfigurers.springSecurity()).build();
         password=System.getenv("HELPDESK_COMPANY_PASSWORD"); assertNotNull(password);
         assertEquals(0,users.count());
-        assertEquals(10L,jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Long.class));
+        assertEquals(11L,jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success",Long.class));
         assertTrue(provisioner.create("Helena Administradora","admin1@empresa.test",password.toCharArray()));
         assertFalse(provisioner.create("Blocked","blocked@empresa.test",password.toCharArray()));
         String admin=login("admin1@empresa.test");jwt=admin;
@@ -157,7 +157,30 @@ class CompanyWorkflowPostgresIntegrationTest {
             assertEquals(1,statuses.stream().filter(code->code==200).count(),"Only one concurrent assignment may succeed");
             assertEquals(1,statuses.stream().filter(code->code==400||code==409).count());
         } finally {jdbc.execute("DROP TRIGGER slow_assignment ON tickets");jdbc.execute("DROP FUNCTION slow_assignment()");}
+
+        // Integrated operational journey: waiting for a requester, closure, cancellation and normal recovery.
+        jwt=login(req3.getEmail());String oldRequester=jwt;
+        long access=call("POST","/tickets",Map.of("title","Acesso ao sistema","description","Permissão necessária","category","SOLICITACAO_ACESSO"),201).get("id").asLong();
+        jwt=login(tech1.getEmail());call("PATCH","/tickets/"+access+"/technician",Map.of("technicianId",tech1.getId()),200);
+        call("PATCH","/tickets/"+access+"/status",Map.of("status","EM_ATENDIMENTO"),200);
+        call("POST","/tickets/"+access+"/comments",Map.of("content","Informe o setor de trabalho."),201);
+        call("PATCH","/tickets/"+access+"/status",Map.of("status","AGUARDANDO_USUARIO"),200);
+        jwt=oldRequester;call("POST","/tickets/"+access+"/comments",Map.of("content","Setor administrativo."),201);
+        jwt=login(tech1.getEmail());call("PATCH","/tickets/"+access+"/status",Map.of("status","EM_ATENDIMENTO"),200);
+        call("PATCH","/tickets/"+access+"/status",Map.of("status","RESOLVIDO","solution","Permissão concedida após validação."),200);
+        call("PATCH","/tickets/"+access+"/status",Map.of("status","FECHADO"),200);
+        jwt=oldRequester;long cancelled=call("POST","/tickets",Map.of("title","Dúvida resolvida","description","Cancelamento solicitado","category","DUVIDA"),201).get("id").asLong();
+        call("PATCH","/tickets/"+cancelled+"/status",Map.of("status","CANCELADO"),200);
+        jwt=login(admin2.getEmail());call("GET","/users",null,200);call("GET","/dashboard/summary",null,200);call("GET","/tickets/"+access+"/audit",null,200);
+        jwt=null;call("POST","/auth/password-recovery",Map.of("email",req3.getEmail()),202);jwt=login(admin2.getEmail());
+        var list=call("GET","/admin/password-recoveries",null,200);JsonNode pending=null;for(var entry:list)if(entry.path("userId").asLong()==req3.getId()&&entry.path("status").asText().equals("PENDING"))pending=entry;
+        assertNotNull(pending);String code=call("POST","/admin/password-recoveries/"+pending.path("id").asLong()+"/approve",Map.of("expectedVersion",pending.path("version").asLong(),"identityVerified",true),200).path("authorization").asText();
+        String changed="Company2!"+UUID.randomUUID();jwt=null;call("POST","/auth/password-reset",Map.of("authorization",code,"password",changed,"confirmation",changed),200);
+        jwt=oldRequester;call("GET","/tickets",null,401);jwt=null;call("POST","/auth/login",Map.of("email",req3.getEmail(),"password",password),401);
+        call("POST","/auth/login",Map.of("email",req3.getEmail(),"password",changed),200);
+        call("POST","/auth/password-reset",Map.of("authorization",code,"password",changed,"confirmation",changed),400);
     }
+
     private int assignConcurrently(String admin,long ticket,long technician,CyclicBarrier barrier)throws Exception {
         barrier.await(10,TimeUnit.SECONDS);
         return mvc.perform(patch("/tickets/"+ticket+"/technician").header("Authorization","Bearer "+admin)

@@ -77,7 +77,7 @@ class AccountMigrationPostgresIntegrationTest {
                 statement.execute("INSERT INTO ticket_audit_logs(id,changed_at,field_name,changed_by_id,ticket_id) VALUES (1,now(),'status',1,1)");
             }
             var before = fingerprints(connection);
-            assertEquals(9, flyway(url).migrate().migrationsExecuted);
+            assertEquals(10, flyway(url).migrate().migrationsExecuted);
             assertEquals(before, fingerprints(connection));
             assertEquals("4", value(connection, "SELECT count(*) FROM users WHERE active AND session_version=0"));
             assertEquals("2", value(connection, "SELECT count(*) FROM users WHERE active AND role='ADMIN'"));
@@ -95,7 +95,7 @@ class AccountMigrationPostgresIntegrationTest {
     @Test
     void createsFreshSchemaWithoutDefaultAccounts() throws Exception {
         String url = isolatedDatabase();
-        assertEquals(10, flyway(url).migrate().migrationsExecuted);
+        assertEquals(11, flyway(url).migrate().migrationsExecuted);
         try (Connection connection = connect(url)) {
             assertEquals("0", value(connection, "SELECT count(*) FROM users"));
             assertEquals("2", value(connection, """
