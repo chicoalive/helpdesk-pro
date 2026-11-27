@@ -15,7 +15,9 @@ $manifest.Format=1;[IO.File]::WriteAllText($dump,'not-a-postgres-dump');$manifes
 $refused=$false;try{Test-MatiBackup (Join-Path $folder absent)|Out-Null}catch{$refused=$true};Check $refused 'Backup inexistente recusado'
 if($IsWindows){
  $module=Get-Module MeuAssistenteTI.Operations
+ & icacls $folder /grant '*S-1-1-0:R'|Out-Null
  & $module {param($f) Protect-MatiDirectory $f} $folder
+ $folderSafe=$true;try{& $module {param($f) Assert-MatiPrivate $f ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value)} $folder}catch{$folderSafe=$false};Check $folderSafe 'Proteção remove permissões explícitas extras da pasta'
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
  $key=Join-Path $folder key.xml;$trust=Join-Path $folder trust.properties;'test-key-only'|Set-Content $key;'test-trust-only'|Set-Content $trust
  $configPath=Join-Path $folder installation.json

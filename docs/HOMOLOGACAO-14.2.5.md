@@ -59,6 +59,7 @@ Capturas e evidências privadas permanecem fora do Git. Nenhuma nova identidade 
 - Porta dinâmica do frontend mudava ao reiniciar e invalidava endereço/CORS. O laboratório agora recebe porta local fixa na criação. A saúde inclui acesso pelo proxy com Origin, não só HTTP direto.
 - Nginx é retomado após backend para evitar referência antiga ao serviço durante manutenções/recriações.
 - Comandos auxiliares dependiam de caminhos temporários e configuração implícita. Foram consolidados em rotinas versionadas com configuração privada estável, contexto local fixo e validação de recursos.
+- A primeira CI Windows recusou uma ACL adicional do runner elevado. O verificador permaneceu restritivo; a criação de pastas/arquivos privados passou a definir DACL exata e proprietário explícito. Uma regressão acrescentada comprova remoção de permissão extra. Nenhuma proteção foi relaxada.
 - A primeira regressão encontrou um teste histórico de V9–V10 que passou a executar também V11. O alvo foi fixado em V10 para preservar a finalidade do teste; a migração V11 tem teste próprio.
 
 Não foram encontrados gargalos que justificassem alterar contratos, paginação ou arquitetura dentro do volume medido.
@@ -102,7 +103,7 @@ A lista transferiu aproximadamente 1,74 MB. No navegador, um ensaio único de re
 
 - **Backend: 516 aprovados, zero falhas, erros ou pulados**, PostgreSQL real isolado e demais testes. São os 502 anteriores mais 14 cenários de manutenção, além da ampliação da jornada existente.
 - **Frontend: 250 aprovados em 24 arquivos**, sem mudanças na identidade ou telas.
-- **Operação Windows: dez verificações aprovadas**, incluindo sintaxe, hash/formato de backup, distinção entre hash e restauração, SID e ACL.
+- **Operação Windows: onze verificações aprovadas**, incluindo sintaxe, hash/formato de backup, distinção entre hash e restauração, SID e ACL.
 - bootJar, imagem backend e build de produção Angular concluídos. Mantidos os dois avisos CSS conhecidos de chamados e usuários; orçamentos não foram aumentados. Jackson informa uso de API de leitura depreciada, sem erro de compilação.
 - CI inclui PostgreSQL efêmero e novo job operacional Windows. Resultado e commit finais são informados após o push.
 

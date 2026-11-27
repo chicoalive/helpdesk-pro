@@ -8,9 +8,16 @@ function Assert-MatiOutsideRepository([string]$Path,[string]$Repository){
 function Protect-MatiDirectory([string]$Path){
  if([IO.Path]::GetFullPath($Path).TrimEnd('\','/') -eq [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($Path)).TrimEnd('\','/')){throw 'Não utilize a raiz de um disco como diretório privado.'}
  New-Item -ItemType Directory -Path $Path -Force|Out-Null
- $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
- & icacls $Path /inheritance:r /grant:r "*${sid}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F'|Out-Null
- if($LASTEXITCODE){throw 'Não foi possível restringir o diretório privado.'}
+ $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+ $acl=[Security.AccessControl.DirectorySecurity]::new();$acl.SetOwner($sid);$acl.SetAccessRuleProtection($true,$false)
+ foreach($identity in @($sid,[Security.Principal.SecurityIdentifier]::new('S-1-5-18'))){$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($identity,[Security.AccessControl.FileSystemRights]::FullControl,([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit),[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))}
+ Set-Acl -LiteralPath $Path -AclObject $acl
+
+}
+function Protect-MatiFile([string]$Path){
+ $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User;$acl=[Security.AccessControl.FileSecurity]::new();$acl.SetOwner($sid);$acl.SetAccessRuleProtection($true,$false)
+ foreach($identity in @($sid,[Security.Principal.SecurityIdentifier]::new('S-1-5-18'))){$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($identity,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))}
+ Set-Acl -LiteralPath $Path -AclObject $acl
 }
 function Assert-MatiPrivate([string]$Path,[string]$Sid){
  if(!(Test-Path -LiteralPath $Path)){throw 'Arquivo privado indisponível.'}
@@ -92,10 +99,11 @@ function New-MatiBackup($c){
  $start=[Diagnostics.ProcessStartInfo]::new($c.DockerPath);$start.UseShellExecute=$false;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
  foreach($arg in @('--context',$c.DockerContext,'exec',$db.Id,'pg_dump','-U',$vars.POSTGRES_USER,'-d',$vars.POSTGRES_DB,'-Fc','--no-owner','--no-acl')){$start.ArgumentList.Add($arg)}
  $process=[Diagnostics.Process]::Start($start);$errors=$process.StandardError.ReadToEndAsync();$stream=[IO.File]::Create((Join-Path $folder database.dump));try{$process.StandardOutput.BaseStream.CopyTo($stream)}finally{$stream.Dispose()};$process.WaitForExit();$null=$errors.GetAwaiter().GetResult();if($process.ExitCode){throw 'Backup falhou; arquivo não deve ser utilizado.'}
+ Protect-MatiFile (Join-Path $folder database.dump)
  $after=Snapshot $c;if((Fingerprint $before) -ne (Fingerprint $after)){throw 'Dados mudaram durante o backup. Repita em janela sem gravações.'}
  $effective=Assert-MatiCompose $c
  $manifest=@{Format=1;CreatedAt=[DateTime]::UtcNow.ToString('o');Project=$c.Project;Database=$vars.POSTGRES_DB;SystemId=(Sql $c 'SELECT system_identifier::text FROM pg_control_system()');Tables=$before.Tables;Sequences=$before.Sequences;Fingerprint=(Fingerprint $before);Sha256=(Get-FileHash (Join-Path $folder database.dump)).Hash.ToLowerInvariant();BackendImage=(Get-MatiContainer $c backend).Config.Image;BackendImageId=(Get-MatiContainer $c backend).Image;FrontendImageId=(Get-MatiContainer $c frontend).Image;WorkingTreeDirty=[bool](Invoke-MatiNative 'git' @('-C',$c.Repository,'status','--porcelain'));RestoreBackendImage=$effective.services.backend.image;FrontendImage=$effective.services.frontend.image;ApplicationCommit=(Invoke-MatiNative 'git' @('-C',$c.Repository,'rev-parse','HEAD'));Migrations=(Sql $c 'SELECT json_agg(row_to_json(t) ORDER BY installed_rank)::text FROM flyway_schema_history t');RestoreVerified=$false;BackupSeconds=$timer.Elapsed.TotalSeconds;Requirements=@('JWT_SECRET separado do backup','Configuração e credencial protegidas do operador','Docker e imagens compatíveis','PostgreSQL 15')}
- $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $folder manifest.json)
+ $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $folder manifest.json);Protect-MatiFile (Join-Path $folder manifest.json)
  return $folder
 }
 function Test-MatiBackup([string]$Folder){
@@ -107,9 +115,9 @@ function Test-MatiBackup([string]$Folder){
 function New-MatiLab($c,[string]$Folder,[string]$RestoreBackendImage=''){
  $timer=[Diagnostics.Stopwatch]::StartNew();$m=Test-MatiBackup $Folder;if($RestoreBackendImage){if($RestoreBackendImage -notmatch '^[a-zA-Z0-9_./:-]+$'){throw 'Imagem inválida.'};$null=Docker $c @('image','inspect',$RestoreBackendImage);$m.RestoreBackendImage=$RestoreBackendImage};$name='mati-lab-'+[guid]::NewGuid().ToString('N').Substring(0,12);$private=Join-Path $c.PrivateDirectory $name;Protect-MatiDirectory $private
  $secret=[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(36));$env:MATI_LAB_PASSWORD=$secret
- [pscredential]::new('postgres',(ConvertTo-SecureString $secret -AsPlainText -Force))|Export-Clixml (Join-Path $private lab.credential.xml)
+ [pscredential]::new('postgres',(ConvertTo-SecureString $secret -AsPlainText -Force))|Export-Clixml (Join-Path $private lab.credential.xml);Protect-MatiFile (Join-Path $private lab.credential.xml)
  $env:MATI_LAB_JWT=[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
- [pscredential]::new('jwt',(ConvertTo-SecureString $env:MATI_LAB_JWT -AsPlainText -Force))|Export-Clixml (Join-Path $private jwt.credential.xml)
+ [pscredential]::new('jwt',(ConvertTo-SecureString $env:MATI_LAB_JWT -AsPlainText -Force))|Export-Clixml (Join-Path $private jwt.credential.xml);Protect-MatiFile (Join-Path $private jwt.credential.xml)
  $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start();$frontPort=$listener.LocalEndpoint.Port;$listener.Stop()
  $compose=@'
 services:
@@ -148,7 +156,7 @@ volumes:
     labels: {meu-assistente-ti.role: recovery-lab}
 '@
  # Literal interpolation belongs to Compose, never to a shell or an on-disk password.
- $compose=$compose.Replace('\$'+'{','${').Replace('__BACKEND__',$m.RestoreBackendImage).Replace('__FRONTEND__',$m.FrontendImage).Replace('__FRONTEND_PORT__',$frontPort);$file=Join-Path $private compose.yml;[IO.File]::WriteAllText($file,$compose)
+ $compose=$compose.Replace('\$'+'{','${').Replace('__BACKEND__',$m.RestoreBackendImage).Replace('__FRONTEND__',$m.FrontendImage).Replace('__FRONTEND_PORT__',$frontPort);$file=Join-Path $private compose.yml;[IO.File]::WriteAllText($file,$compose);Protect-MatiFile $file
  $lab=[pscustomobject]@{Repository=$c.Repository;Project=$name;ComposeFiles=@($file);DockerPath=$c.DockerPath;DockerContext=$c.DockerContext;OperatorSid=$c.OperatorSid;PrivateDirectory=$private;BackupRoot=(Join-Path $private backups);KeyFile=$c.KeyFile;TrustFile=$c.TrustFile;LabCredential=(Join-Path $private lab.credential.xml);LabJwt=(Join-Path $private jwt.credential.xml)}
  $null=Compose $lab @('up','-d','--wait','db');$db=Get-MatiContainer $lab db
  if($db.Config.Labels.'meu-assistente-ti.role' -ne 'recovery-lab' -or $db.Name -notlike ('/'+$name+'-*')){throw 'Destino de restauração não é laboratório identificado.'}
@@ -160,7 +168,7 @@ volumes:
  $upgraded=Snapshot $lab;foreach($key in $m.Tables.Keys){if($key -ne 'flyway_schema_history' -and $upgraded.Tables[$key] -ne $m.Tables[$key]){throw ('Aplicação mudou dados restaurados: '+$key)}}
  $oldMigrations=$m.Migrations|ConvertFrom-Json;$newMigrations=(Sql $lab 'SELECT json_agg(row_to_json(t) ORDER BY installed_rank)::text FROM flyway_schema_history t')|ConvertFrom-Json
  foreach($old in $oldMigrations){$new=@($newMigrations|Where-Object installed_rank -eq $old.installed_rank)[0];if(($old|ConvertTo-Json -Compress) -ne ($new|ConvertTo-Json -Compress)){throw 'Migração aplicada anteriormente foi alterada.'}}
- $labFile=Join-Path $private installation.json;$lab|ConvertTo-Json -Depth 8|Set-Content $labFile
+ $labFile=Join-Path $private installation.json;$lab|ConvertTo-Json -Depth 8|Set-Content $labFile;Protect-MatiFile $labFile
  $m.RestoreVerified=$true;$m.RestoredAt=[DateTime]::UtcNow.ToString('o');$m.RestoreSeconds=$timer.Elapsed.TotalSeconds;$m.LabConfiguration=$labFile;$m|ConvertTo-Json -Depth 12|Set-Content (Join-Path $Folder manifest.json)
  return $labFile
 }
@@ -182,7 +190,7 @@ function Recover-Mati($c,[long]$UserId,[string]$Email,[string]$Reason,[string]$N
  $backup=New-MatiBackup $c;$null=New-MatiLab $c $backup;$null=Read-MatiConfig $c.ConfigurationFilePath
  $m=Test-MatiBackup $backup;if(!$m.RestoreVerified){throw 'Backup não restaurado e validado.'}
  $password='Aa1!'+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
- $credential=[pscredential]::new($Email,(ConvertTo-SecureString $password -AsPlainText -Force));$credential|Export-Clixml -LiteralPath $NewCredentialFile -NoClobber
+ $credential=[pscredential]::new($Email,(ConvertTo-SecureString $password -AsPlainText -Force));$credential|Export-Clixml -LiteralPath $NewCredentialFile -NoClobber;Protect-MatiFile $NewCredentialFile
  # Verify DPAPI before any persistent credential change. If later steps fail, keep this protected candidate for diagnosis.
  $candidate=Import-Clixml -LiteralPath $NewCredentialFile;if($candidate.GetNetworkCredential().Password -cne $password){throw 'DPAPI não foi validado.'}
  $payload=@{operation='recover-admin';requestId=[guid]::NewGuid().ToString();issuedAt=[DateTime]::UtcNow.ToString('o');operatorSid=$c.OperatorSid;operatorName=[Security.Principal.WindowsIdentity]::GetCurrent().Name;database=$m.Database;systemId=$m.SystemId;installationId=(Sql $c 'SELECT installation_id::text FROM maintenance_installation WHERE id=1');backupSha256=$m.Sha256;fingerprint=$m.Fingerprint;restoreVerified=$true;userId=$UserId;email=$Email;sessionVersion=$user.session_version;editVersion=$user.edit_version;password=$password;reason=$Reason}
@@ -199,7 +207,7 @@ function Recover-Mati($c,[long]$UserId,[string]$Email,[string]$Reason,[string]$N
  finally{$new=$null;$login=$null;$credential=$null}
  $result='SUCCESS'
  [pscustomobject]@{Recovery='SUCCESS';AdminLogin=200;AdministrativeAccess=200;CredentialFile=$NewCredentialFile;BackupDirectory=$backup}
- }finally{try{@{Utc=[DateTime]::UtcNow.ToString('o');OperatorSid=$c.OperatorSid;OperatorName=[Security.Principal.WindowsIdentity]::GetCurrent().Name;UserId=$UserId;Reason=$Reason;Result=$(if($committed -and $result -ne 'SUCCESS'){'NEEDS_ATTENTION'}else{$result})}|ConvertTo-Json -Compress|Add-Content -LiteralPath $journal}finally{if($acquired){$mutex.ReleaseMutex()};$mutex.Dispose()}}
+ }finally{try{@{Utc=[DateTime]::UtcNow.ToString('o');OperatorSid=$c.OperatorSid;OperatorName=[Security.Principal.WindowsIdentity]::GetCurrent().Name;UserId=$UserId;Reason=$Reason;Result=$(if($committed -and $result -ne 'SUCCESS'){'NEEDS_ATTENTION'}else{$result})}|ConvertTo-Json -Compress|Add-Content -LiteralPath $journal;Protect-MatiFile $journal}finally{if($acquired){$mutex.ReleaseMutex()};$mutex.Dispose()}}
 }
 function Invoke-MatiOperation {
  param([string]$Action,[string]$Config,[string]$Repository,[string]$OperationalOverride,[string]$BackupRoot,[string]$BackupDirectory,[string]$RestoreBackendImage,[long]$UserId,[string]$Email,[string]$Reason,[string]$NewCredentialFile)
@@ -213,9 +221,10 @@ function Invoke-MatiOperation {
   try{[pscredential]::new('maintenance-signing-key',(ConvertTo-SecureString ([Convert]::ToBase64String($rsa.ExportPkcs8PrivateKey())) -AsPlainText -Force))|Export-Clixml $keyFile;"operatorSid=$sid`npublicKey=$([Convert]::ToBase64String($rsa.ExportSubjectPublicKeyInfo()))"|Set-Content $trustFile}finally{$rsa.Dispose()}
   }
   $found=Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue;$docker=if($found){$found.Source}else{''};if(!$docker){$docker=Join-Path $env:LOCALAPPDATA 'Programs/DockerDesktop/resources/bin/docker.exe'};if(!(Test-Path $docker)){throw 'Docker Desktop não localizado.'}
-  $override=Join-Path $private operational.yml;Copy-Item -LiteralPath $OperationalOverride -Destination $override
+  Protect-MatiFile $keyFile;Protect-MatiFile $trustFile
+ $override=Join-Path $private operational.yml;Copy-Item -LiteralPath $OperationalOverride -Destination $override;Protect-MatiFile $override
   $c=[pscustomobject]@{Repository=$Repository;Project='helpdesk-pro';ComposeFiles=@((Join-Path $Repository docker-compose.yml),$override);DockerPath=$docker;DockerContext='desktop-linux';OperatorSid=$sid;PrivateDirectory=$private;BackupRoot=$BackupRoot;KeyFile=$keyFile;TrustFile=$trustFile;LabCredential='';LabJwt=''}
-  $null=Assert-MatiCompose $c;$c|ConvertTo-Json -Depth 8|Set-Content $Config;'Configuração privada e chave DPAPI criadas para o operador Windows atual.';return
+  $null=Assert-MatiCompose $c;$c|ConvertTo-Json -Depth 8|Set-Content $Config;Protect-MatiFile $Config;'Configuração privada e chave DPAPI criadas para o operador Windows atual.';return
  }
  $c=Read-MatiConfig $Config
  if($Action -eq 'Start'){
