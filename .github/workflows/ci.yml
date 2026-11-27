@@ -60,3 +60,12 @@ jobs:
 
       - name: Build Frontend
         run: cd frontend && npm run build
+
+  operations-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Validate operational scripts and Windows authorization guards
+        shell: pwsh
+        run: ./ops/Tests/Operations.Tests.ps1

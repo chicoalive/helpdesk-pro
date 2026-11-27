@@ -1,6 +1,6 @@
 # Levantamento da Etapa 14.2
 
-**Atualização em 26/11/2026:** 14.2.1–14.2.4 implementadas, homologadas e aplicadas localmente. Estado atual: 502 testes backend, 250 frontend e Flyway V1–V10. Próxima entrega: 14.2.5. Etapa 15 suspensa. O texto abaixo preserva o levantamento inicial e as atualizações históricas.
+**Atualização em 26/11/2026:** 14.2.1–14.2.5 implementadas, homologadas e aplicadas localmente. Estado atual: 516 testes backend, 250 frontend e Flyway V1–V11. Rotinas Windows e contingência administrativa no GUIA-OPERACIONAL.md. Etapa 15 e chatbot suspensos. O texto abaixo preserva o levantamento e as atualizações históricas.
 
 Somente levantamento técnico. Nenhuma funcionalidade desta etapa foi implementada na consolidação de 14.1A–C. Etapa 15 suspensa.
 
@@ -36,3 +36,7 @@ Atribuição e transferência implementadas conforme [homologação 14.2.2](HOMO
 ## Atualização de 26/11/2026 — 14.2.4 e continuidade
 
 [Ativos e anexos homologados](HOMOLOGACAO-14.2.4.md): versão e auditoria patrimonial transacional, unicidade normalizada, preservação do histórico e validação real de PNG/JPEG até 2 MiB. V10 validada em restauração isolada antes da aplicação principal. Suítes: 502 backend e 250 frontend; builds aprovados e navegação desktop/celular com os três perfis. Na retomada, serviços locais e dados reconferidos; backup atual restaurado com 14 tabelas idênticas. Login e identidade visual preservados. Próxima entrega: 14.2.5, sem implementação nesta execução. Etapa 15 e chatbot suspensos.
+
+## Atualização de 26/11/2026 — 14.2.5
+
+[Homologação empresarial](HOMOLOGACAO-14.2.5.md): jornada completa em laboratório, backup/restauração de dados e sequências, parada e retomada controladas, recuperação administrativa local assinada e auditada, 516 testes backend, 250 frontend e dez verificações operacionais Windows. V11 aditiva; contas, senhas, anexo e histórico principais preservados. [Guia operacional](GUIA-OPERACIONAL.md) e [continuidade administrativa](CONTINUIDADE-ADMINISTRATIVA.md) atualizados. Ensaio com 2.011 chamados totais e até oito requisições simultâneas, sem extrapolar capacidade. A Etapa 14.2 está concluída nos limites do relatório; nenhuma nova política comercial, Etapa 15 ou chatbot foi implementado.

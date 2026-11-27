@@ -4,7 +4,7 @@ Registro técnico da evolução incremental do projeto **HelpDesk Pro**, organiz
 
 ## Estado atual — Etapa 14
 
-**Atualização 26/11/2026:** entregas 14.2.1–14.2.4 implementadas, homologadas e aplicadas; Flyway V1–V10, 502 testes backend e 250 frontend aprovados. [Evidências da 14.2.4](HOMOLOGACAO-14.2.4.md). Próxima entrega: 14.2.5. As contagens abaixo da 14.1 representam seu checkpoint histórico.
+**Atualização 26/11/2026:** 14.2.1–14.2.5 homologadas; Flyway V1–V11, 516 testes backend e 250 frontend aprovados. [Rotinas, contingência e resultados](HOMOLOGACAO-14.2.5.md). Etapa 15 e chatbot suspensos. As contagens históricas abaixo representam seus respectivos checkpoints.
 
 As Etapas **14.1A (instalação segura)**, **14.1B (gestão de contas e sessões)** e **14.1C (recuperação e redefinição de senhas)** estão implementadas e homologadas. Identidade pública: **Meu Assistente TI**. Suítes completas: **238 backend + 214 frontend**, sem falhas ou testes pulados na validação com PostgreSQL isolado.
 
@@ -12,7 +12,7 @@ O bootstrap administrativo padrão descrito no histórico abaixo foi substituíd
 
 - [Homologação e pendências comerciais](HOMOLOGACAO-14.1.md).
 - [Continuidade administrativa e limites da contingência](CONTINUIDADE-ADMINISTRATIVA.md).
-- [Etapa 14.2](PLANO-14.2.md), com 14.2.1–14.2.4 homologadas e 14.2.5 pendente.
+- [Etapa 14.2](PLANO-14.2.md), com 14.2.1–14.2.5 homologadas.
 
 A Etapa 15, incluindo publicação externa e empregabilidade, permanece suspensa. Os registros a seguir descrevem a evolução histórica e podem conter comportamentos posteriormente substituídos.
 
@@ -112,3 +112,7 @@ Atribuição e transferência implementadas conforme [homologação 14.2.2](HOMO
 ## Atualização de 26/11/2026 — 14.2.4 e continuidade
 
 [Ativos e anexos homologados](HOMOLOGACAO-14.2.4.md): versão e auditoria patrimonial transacional, unicidade normalizada, preservação do histórico e validação real de PNG/JPEG até 2 MiB. V10 validada em restauração isolada antes da aplicação principal. Suítes: 502 backend e 250 frontend; builds aprovados e navegação desktop/celular com os três perfis. Na retomada, serviços locais e dados reconferidos; backup atual restaurado com 14 tabelas idênticas. Login e identidade visual preservados. Próxima entrega: 14.2.5, sem implementação nesta execução. Etapa 15 e chatbot suspensos.
+
+## Atualização de 26/11/2026 — 14.2.5
+
+[Homologação empresarial](HOMOLOGACAO-14.2.5.md): jornada completa em laboratório, backup/restauração de dados e sequências, parada e retomada controladas, recuperação administrativa local assinada e auditada, 516 testes backend, 250 frontend e dez verificações operacionais Windows. V11 aditiva; contas, senhas, anexo e histórico principais preservados. [Guia operacional](GUIA-OPERACIONAL.md) e [continuidade administrativa](CONTINUIDADE-ADMINISTRATIVA.md) atualizados. Ensaio com 2.011 chamados totais e até oito requisições simultâneas, sem extrapolar capacidade. A Etapa 14.2 está concluída nos limites do relatório; nenhuma nova política comercial, Etapa 15 ou chatbot foi implementado.

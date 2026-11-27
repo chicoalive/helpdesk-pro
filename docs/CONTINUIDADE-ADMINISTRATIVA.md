@@ -35,10 +35,20 @@ O diretório deve ter acesso limitado ao responsável e SYSTEM. Valide a leitura
 - Verifique se ainda há sessão válida ou outro ADMIN e aplique o fluxo acima.
 - Se o XML estiver indisponível, restaure apenas a cópia protegida desse arquivo e do contexto Windows, por procedimento corporativo autorizado. Não restaure o banco principal nem volte um backup antigo da aplicação para contornar o login.
 - Se existir uma cópia independente da senha em cofre corporativo, use-a para entrar localmente, valide a identidade e renove os meios de contingência.
-- Se todos esses meios faltarem, **pare: a versão atual não oferece recuperação segura implementada**. Preserve banco, backups e auditoria e solicite um procedimento de manutenção local formal, revisado e testado em cópia isolada. Não altere hashes por SQL, reative conta de desenvolvimento ou habilite demonstração.
+- Se todos esses meios faltarem, preserve banco, backups e auditoria e acione o responsável técnico pelo procedimento local da Etapa 14.2.5, descrito ao final deste documento e no guia operacional. Não altere hashes por SQL, reative conta de desenvolvimento ou habilite demonstração.
 
-Controle local do computador, sozinho, não corresponde a uma autorização de redefinição na aplicação. Nenhum comando de emergência foi implementado nesta consolidação. Uma futura solução exigirá identidade do operador verificada fora da aplicação, acesso local autorizado, backup validado, execução exclusiva, confirmação explícita da conta, entrada protegida da nova senha, auditoria, revogação de sessões e validação antes de liberar o serviço; isso é requisito pendente, não instrução executável hoje.
+Controle local e endereço localhost, sozinhos, não autorizam uma redefinição. A manutenção implementada exige identidade Windows, propriedade da configuração privada, chave DPAPI, controle Docker local, backup restaurado e verificado e operação exclusiva auditada. Não há autorização por uma simples confirmação digitada.
 
-## Pendência comercial importante
+## Continuidade com um único ADMIN ativo
 
-Com apenas um ADMIN ativo, perder simultaneamente senha, sessões e meios externos de recuperação causa bloqueio administrativo. Antes do uso comercial, definir e ensaiar contingência independente: segundo responsável real com conta exclusiva ou cofre corporativo com acesso de emergência controlado e testado. Backup do PostgreSQL não substitui recuperação de credenciais. Nenhuma conta ou credencial real foi criada ou alterada nesta consolidação.
+Com apenas um ADMIN ativo, a perda de senha, sessões e cofre exige manutenção local pelo responsável técnico autorizado. Mantenha e ensaie meios independentes: responsável substituto formalmente autorizado, cofre corporativo e recuperação do contexto Windows. Backup do PostgreSQL não substitui recuperação de credenciais. Nenhuma conta ou credencial real foi criada ou alterada nesta consolidação.
+
+## Etapa 14.2.5 — Contingência local implementada
+
+A limitação histórica acima foi resolvida por um procedimento explícito de manutenção técnica local, entregue e ensaiado somente em laboratório. Consulte [Guia operacional — contingência de ADMIN](GUIA-OPERACIONAL.md#contingência-local-de-admin--procedimento-excepcional).
+
+O procedimento exige operador Windows autorizado, arquivos privados com ACL restrita, chave de assinatura protegida por DPAPI, controle do Docker Desktop local, identificação exata de um ADMIN ativo e backup restaurado e validado. Não depende do login perdido, não tem rota HTTP privilegiada, não reativa contas e não altera a finalidade de provision-admin. Localhost ou uma confirmação digitada não autorizam a operação.
+
+O comando é recover-admin, acionado pelo wrapper operacional. A senha é gerada em memória e guardada em um novo arquivo DPAPI antes de ser aplicada. Transação e auditoria de manutenção, separada de um ator da aplicação, preservam a rastreabilidade. Sessões e autorizações anteriores são revogadas. Em falha, preserve a candidata DPAPI e investigue o resultado antes de tentar novamente.
+
+A contingência não substitui cofre corporativo, segundo responsável autorizado e cópia protegida fora do computador. Controle administrativo do host/Docker faz parte da fronteira de confiança. A Etapa 14.2.5 não recuperou nem modificou o Administrador Principal real e não reativou a conta antiga.

@@ -58,7 +58,7 @@ Sistema full stack para gestão de chamados de suporte técnico, administração
 - **Trilha de auditoria consistente:** registros gerados exclusivamente dentro das transações reais de atribuição de técnico, mudança de status e solução.
 - **Docker Compose Full Stack e perfil de produção seguro:** build multi-stage para backend (JDK 21 → JRE 21 Alpine) e frontend (Node 24 Alpine → Nginx Alpine), exigência explícita de `JWT_SECRET`, configuração de CORS por variável de ambiente e demonstração somente por ativação explícita, separada da instalação real.
 - **Pipeline de CI no GitHub Actions:** execução automatizada da suíte de testes do backend e testes/build do frontend a cada `push` ou `pull_request` na branch `main`.
-- **752 testes automatizados:** cobertura abrangente de regras de negócio, segurança, contratos REST, componentes, guards e serviços.
+- **766 testes automatizados:** cobertura abrangente de regras de negócio, segurança, contratos REST, componentes, guards e serviços.
 
 ---
 
@@ -110,9 +110,9 @@ stateDiagram-v2
 
 ## Testes e qualidade
 
-- **Backend:** **502 testes aprovados** (testes unitários com JUnit 5 / Mockito e testes de integração com `@SpringBootTest`, `MockMvc` e bancos **H2** e **PostgreSQL real isolado**).
+- **Backend:** **516 testes aprovados** (testes unitários com JUnit 5 / Mockito e testes de integração com `@SpringBootTest`, `MockMvc` e bancos **H2** e **PostgreSQL real isolado**).
 - **Frontend:** **250 testes aprovados** distribuídos em 24 arquivos (Vitest + Angular TestBed).
-- **Total:** **752 testes automatizados** passando.
+- **Total:** **766 testes automatizados** passando.
 - **Integração Contínua:** o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) valida automaticamente os testes do backend, os testes unitários do frontend e o build de produção em cada `push` e `pull_request` para `main`.
 
 ---
@@ -221,7 +221,7 @@ original. Contas preexistentes não recebem eventos de criação retroativos.
 ### Evolução do banco e sessões
 
 O backend usa Flyway em PostgreSQL. Bancos novos executam a V1 (esquema inicial)
-e V2–V10 (sessões, gestão e auditoria de contas, recuperação, concorrência de chamados/ativos, SLA e auditoria patrimonial). Instalações legadas sem Flyway recebem baseline na V1 e executam V2–V10. Bancos já versionados executam somente as migrações pendentes. O Hibernate valida o esquema após as migrações.
+e V2–V11 (sessões, gestão e auditoria de contas, recuperação, concorrência de chamados/ativos, SLA e auditoria patrimonial). Instalações legadas sem Flyway recebem baseline na V1 e executam V2–V11. Bancos já versionados executam somente as migrações pendentes. O Hibernate valida o esquema após as migrações.
 Faça backup e homologue uma restauração isolada antes de atualizar a instalação.
 
 A V2 mantém os usuários existentes ativos e com versão de sessão zero. Não
@@ -317,7 +317,7 @@ O responsável deve guardar a credencial em armazenamento protegido e manter o c
 
 O Compose publica portas somente em `127.0.0.1`; a instalação não é publicada na rede. Demonstração permanece explicitamente desabilitada no modelo de ambiente.
 
-Para executar todos os 502 testes do backend, disponibilize uma instância PostgreSQL **descartável e separada do principal**, com permissão de criar bancos. Configure, somente no ambiente do processo:
+Para executar todos os 516 testes do backend, disponibilize uma instância PostgreSQL **descartável e separada do principal**, com permissão de criar bancos. Configure, somente no ambiente do processo:
 
 - `HELPDESK_DISPOSABLE_TEST_PG_URL`: JDBC do banco descartável de controle.
 - `HELPDESK_DISPOSABLE_TEST_PG_USER` e `HELPDESK_DISPOSABLE_TEST_PG_PASSWORD`.
@@ -343,3 +343,9 @@ Mantidos os prazos de 4/24/72 horas corridas, com medição persistida nas novas
 ## Etapa 14.2.4 — Ativos e anexos
 
 Cadastro e edição de equipamentos com código normalizado, unicidade no PostgreSQL, controle de versão e auditoria transacional. Exclusão física bloqueada para preservar o histórico. PNG/JPEG de até **2.097.152 bytes (2 MiB)** são validados por conteúdo e decodificação, com limites de dimensões e acesso por chamado. A V10 preserva os registros anteriores. Consulte [regras, testes e preservação dos dados](docs/HOMOLOGACAO-14.2.4.md). A próxima entrega é a 14.2.5; Etapa 15 suspensa.
+
+## Etapa 14.2.5 — Rotinas e homologação de empresa
+
+Jornada integrada, backup/restauração em projetos e volumes separados, indisponibilidade controlada e manutenção local de ADMIN ativo homologados. Rotinas Windows permanentes de início, saúde, parada, diagnóstico, backup, verificação, restauração e contingência estão no [Guia operacional](docs/GUIA-OPERACIONAL.md). A V11 acrescenta identidade da instalação e auditoria técnica, sem alterar contas existentes. Recuperação emergencial foi testada somente com contas fictícias; não existe endpoint privilegiado.
+
+[Resultados, tempos e limites da homologação 14.2.5](docs/HOMOLOGACAO-14.2.5.md). Etapa 14.2 concluída dentro dos limites registrados; Etapa 15 e chatbot permanecem suspensos.
